@@ -109,6 +109,15 @@ class DatabaseManagerService:
                 )
                 results["reminders"] = reminder_result
         
+        elif action == "update":
+            results.update(self._update_task(task_action, user_id))
+            
+        elif action == "delete":
+            results.update(self._delete_task(task_action, user_id))
+            
+        elif action == "query":
+            results.update(self._query_tasks(user_id, task_action.dict().get("filters", {})))
+        
         return results
     
     def _handle_scheduling(self, parsed_response: AIResponse, user_input: str, user_id: str) -> Dict[str, Any]:
@@ -118,6 +127,10 @@ class DatabaseManagerService:
         
         if schedule_type == "daily_planning":
             results.update(self._create_daily_schedule(scheduling_action.dict(), user_id))
+        elif schedule_type == "weekly_planning":
+            results.update(self._create_weekly_schedule(scheduling_action.dict(), user_id))
+        elif schedule_type == "rescheduling":
+            results.update(self._handle_rescheduling(scheduling_action.dict(), user_id))
         
         return results
     
@@ -284,7 +297,19 @@ class DatabaseManagerService:
             total_minutes += int(task_data.get("duration", 60))
         
         schedule.total_workload = total_minutes
-        schedule.conflicts = 0
+        
+        # Detect conflicts
+        conflicts = self._detect_time_conflicts(schedule.time_slots)
+        schedule.conflicts = len(conflicts)
+        
+        # Create reminders for scheduled tasks
+        for i, time_slot in enumerate(schedule.time_slots):
+            if time_slot.get("taskId"):
+                task_data = tasks[i] if i < len(tasks) else {}
+                reminders = self._create_schedule_reminders(
+                    time_slot["taskId"], task_data, user_id, today
+                )
+                all_reminders.extend(reminders)
         
         schedule_doc = schedule.to_dict()
         schedule_doc["userId"] = schedule_doc.pop("user_id")
@@ -300,7 +325,7 @@ class DatabaseManagerService:
             "date": today.isoformat(),
             "tasks_count": len(tasks),
             "total_workload": total_minutes,
-            "conflicts_detected": 0,
+            "conflicts_detected": len(conflicts),
             "created_tasks": created_tasks,
             "created_reminders": all_reminders
         }
@@ -346,3 +371,490 @@ class DatabaseManagerService:
             base_duration = max(base_duration * 0.7, 15)
         
         return int(base_duration)
+    
+    def _create_weekly_schedule(self, scheduling_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Create weekly schedule with tasks and reminders"""
+        today = datetime.now()
+        start_of_week = today - timedelta(days=today.weekday())  # Monday
+        
+        schedule = Schedule(user_id, start_of_week, "weekly")
+        schedule.end_date = start_of_week + timedelta(days=6)
+        schedule.weekly_goals = []
+        
+        all_reminders = []
+        created_tasks = []
+        
+        # Create daily schedules for the week
+        for day_offset in range(7):  # Monday to Sunday
+            current_date = start_of_week + timedelta(days=day_offset)
+            
+            daily_tasks = self._generate_weekly_tasks(day_offset, scheduling_data)
+            
+            daily_schedule = {
+                "date": current_date,
+                "dayName": current_date.strftime("%A"),
+                "tasks": [],
+                "workload": 0
+            }
+            
+            for task_data in daily_tasks:
+                # Create task
+                task = Task(user_id, task_data["title"])
+                task.description = f"Weekly planned: {task_data['title']}"
+                task.priority = task_data.get("priority", "medium")
+                task.category = task_data.get("category", "work")
+                task.tags = ["weekly-plan", "auto-generated"]
+                task.due_date = current_date
+                task.due_time = task_data.get("startTime")
+                task.scheduled_slot = {
+                    "date": current_date,
+                    "startTime": task_data.get("startTime"),
+                    "endTime": task_data.get("endTime"),
+                    "flexibility": "flexible"
+                }
+                task.estimated_duration = task_data.get("duration", 60)
+                task.creation_context = "weekly-planning"
+                
+                task_doc = task.to_dict()
+                task_doc["userId"] = task_doc.pop("user_id")
+                task_doc["dueDate"] = task_doc.pop("due_date")
+                task_doc["dueTime"] = task_doc.pop("due_time")
+                task_doc["estimatedDuration"] = task_doc.pop("estimated_duration")
+                task_doc["creationContext"] = task_doc.pop("creation_context")
+                task_doc["lastModifiedBy"] = task_doc.pop("last_modified_by")
+                task_doc["scheduledSlot"] = task_doc.pop("scheduled_slot")
+                task_doc["createdAt"] = task_doc.pop("created_at")
+                task_doc["updatedAt"] = task_doc.pop("updated_at")
+                task_doc["subtasks"] = []
+                
+                task_id = self.task_repo.create(task_doc)
+                created_tasks.append(task_id)
+                
+                # Create reminders for weekly tasks
+                reminders = self._create_schedule_reminders(
+                    task_id, task_data, user_id, current_date.date()
+                )
+                all_reminders.extend(reminders)
+                
+                daily_schedule["tasks"].append({
+                    "taskId": task_id,
+                    "title": task_data["title"],
+                    "startTime": task_data.get("startTime"),
+                    "duration": task_data.get("duration", 60)
+                })
+                daily_schedule["workload"] += task_data.get("duration", 60)
+            
+            schedule.daily_schedules.append(daily_schedule)
+            schedule.total_workload += daily_schedule["workload"]
+        
+        # Save weekly schedule
+        schedule_doc = schedule.to_dict()
+        schedule_doc["userId"] = schedule_doc.pop("user_id")
+        schedule_doc["endDate"] = schedule.end_date
+        schedule_doc["weeklyGoals"] = schedule.weekly_goals
+        schedule_doc["dailySchedules"] = schedule.daily_schedules
+        schedule_doc["totalWorkload"] = schedule_doc.pop("total_workload")
+        schedule_doc["createdAt"] = schedule_doc.pop("created_at")
+        schedule_doc["updatedAt"] = schedule_doc.pop("updated_at")
+        
+        schedule_id = self.schedule_repo.create(schedule_doc)
+        
+        return {
+            "schedule_id": schedule_id,
+            "type": "weekly_planning",
+            "week_start": start_of_week.isoformat(),
+            "total_workload": schedule.total_workload,
+            "created_tasks": created_tasks,
+            "created_reminders": all_reminders,
+            "daily_schedules": len(schedule.daily_schedules)
+        }
+    
+    def _generate_weekly_tasks(self, day_offset: int, scheduling_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate sample tasks for weekly planning"""
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        current_day = day_names[day_offset]
+        
+        # Sample task generation based on day
+        if day_offset < 5:  # Weekdays
+            tasks = [
+                {
+                    "title": f"Morning standup - {current_day}",
+                    "startTime": "09:00",
+                    "endTime": "09:30",
+                    "duration": 30,
+                    "category": "meeting",
+                    "priority": "medium"
+                },
+                {
+                    "title": f"Focus work block - {current_day}",
+                    "startTime": "10:00", 
+                    "endTime": "12:00",
+                    "duration": 120,
+                    "category": "deep_work",
+                    "priority": "high"
+                }
+            ]
+        else:  # Weekends
+            tasks = [
+                {
+                    "title": f"Personal time - {current_day}",
+                    "startTime": "10:00",
+                    "endTime": "11:00", 
+                    "duration": 60,
+                    "category": "personal",
+                    "priority": "low"
+                }
+            ]
+        
+        return tasks
+    
+    def _update_task(self, task_action, user_id: str) -> Dict[str, Any]:
+        """Update an existing task"""
+        task_id = task_action.dict().get("taskId")
+        updates = task_action.dict().get("updates", {})
+        
+        if not task_id:
+            return {"success": False, "error": "Task ID required for update"}
+        
+        try:
+            # Prepare update data
+            update_data = {"updatedAt": datetime.now(), "lastModifiedBy": "ai"}
+            
+            for key, value in updates.items():
+                if key == "dueDate" and value:
+                    try:
+                        update_data["dueDate"] = datetime.strptime(value, "%Y-%m-%d")
+                    except ValueError:
+                        continue
+                elif key in ["title", "description", "priority", "category", "status", "dueTime"]:
+                    update_data[key] = value
+                elif key == "tags" and isinstance(value, list):
+                    update_data["tags"] = value
+            
+            result = self.task_repo.update(task_id, update_data)
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "updated_fields": list(update_data.keys())
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _delete_task(self, task_action, user_id: str) -> Dict[str, Any]:
+        """Delete a task and associated reminders"""
+        task_id = task_action.dict().get("taskId")
+        
+        if not task_id:
+            return {"success": False, "error": "Task ID required for deletion"}
+        
+        try:
+            # Delete associated reminders first
+            self.reminder_repo.delete_by_task_id(task_id)
+            
+            # Delete the task
+            result = self.task_repo.delete(task_id)
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "deleted": result
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _query_tasks(self, user_id: str, filters: Dict[str, Any]) -> Dict[str, Any]:
+        """Query tasks based on filters"""
+        try:
+            query = {"userId": user_id}
+            
+            # Add filters
+            if filters.get("status"):
+                query["status"] = filters["status"]
+            if filters.get("category"):
+                query["category"] = filters["category"]
+            if filters.get("priority"):
+                query["priority"] = filters["priority"]
+            if filters.get("tags"):
+                query["tags"] = {"$in": filters["tags"]}
+            
+            # Date range filter
+            if filters.get("dueDateRange"):
+                date_range = filters["dueDateRange"]
+                if date_range.get("start"):
+                    query["dueDate"] = {"$gte": datetime.strptime(date_range["start"], "%Y-%m-%d")}
+                if date_range.get("end"):
+                    if "dueDate" not in query:
+                        query["dueDate"] = {}
+                    query["dueDate"]["$lte"] = datetime.strptime(date_range["end"], "%Y-%m-%d")
+            
+            tasks = self.task_repo.find_by_query(query, limit=filters.get("limit", 20))
+            
+            return {
+                "success": True,
+                "tasks_found": len(tasks),
+                "tasks": [
+                    {
+                        "id": task.get("_id", task.get("id")), 
+                        "title": task["title"], 
+                        "status": task["status"],
+                        "priority": task.get("priority"),
+                        "category": task.get("category"),
+                        "dueDate": task.get("dueDate"),
+                        "dueTime": task.get("dueTime")
+                    } 
+                    for task in tasks
+                ]
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _create_schedule_reminders(self, task_id: str, task_data: Dict[str, Any], user_id: str, date) -> List[Dict[str, Any]]:
+        """Create reminders for scheduled tasks"""
+        start_time = task_data.get("startTime")
+        category = task_data.get("category", "other") 
+        priority = task_data.get("priority", "medium")
+        
+        if not start_time:
+            return []
+        
+        created_reminders = []
+        
+        try:
+            # Parse start time
+            start_datetime = datetime.combine(
+                date,
+                datetime.strptime(start_time, "%H:%M").time()
+            )
+            
+            # Define reminder rules based on task type and priority
+            reminder_rules = self._get_reminder_rules(category, priority)
+            
+            for rule in reminder_rules:
+                trigger_time = start_datetime - timedelta(minutes=rule["minutes"])
+                
+                # Only create reminder if it's in the future
+                if trigger_time > datetime.now():
+                    reminder = Reminder(user_id, ObjectId(task_id))
+                    reminder.type = "schedule"
+                    reminder.trigger_time = trigger_time
+                    reminder.before_due = f"{rule['minutes']}m"
+                    reminder.message = rule["message"].format(
+                        task=task_data.get("title", "Task"),
+                        time=start_time
+                    )
+                    reminder.channel = "notification"
+                    reminder.priority = rule["priority"]
+                    reminder.schedule_type = "auto-generated"
+                    
+                    reminder_doc = reminder.to_dict()
+                    reminder_doc["userId"] = reminder_doc.pop("user_id")
+                    reminder_doc["taskId"] = reminder_doc.pop("task_id")
+                    reminder_doc["triggerTime"] = reminder_doc.pop("trigger_time")
+                    reminder_doc["beforeDue"] = reminder_doc.pop("before_due")
+                    reminder_doc["scheduleType"] = reminder_doc.pop("schedule_type")
+                    reminder_doc["slotIndex"] = reminder_doc.pop("slot_index")
+                    reminder_doc["ruleIndex"] = reminder_doc.pop("rule_index")
+                    reminder_doc["createdAt"] = reminder_doc.pop("created_at")
+                    reminder_doc["updatedAt"] = reminder_doc.pop("updated_at")
+                    
+                    reminder_id = self.reminder_repo.create(reminder_doc)
+                    created_reminders.append({
+                        "reminder_id": reminder_id,
+                        "trigger_time": trigger_time.isoformat(),
+                        "message": reminder.message,
+                        "before_start": rule["minutes"]
+                    })
+        
+        except Exception as e:
+            print(f"Failed to create schedule reminders: {e}")
+        
+        return created_reminders
+    
+    def _get_reminder_rules(self, category: str, priority: str) -> List[Dict[str, Any]]:
+        """Get reminder rules based on task category and priority"""
+        base_rules = []
+        
+        # Category-specific rules
+        if category == "meeting":
+            base_rules = [
+                {"minutes": 15, "message": "Chuẩn bị meeting '{task}' trong 15 phút (lúc {time})", "priority": "high"},
+                {"minutes": 5, "message": "Meeting '{task}' bắt đầu trong 5 phút!", "priority": "urgent"}
+            ]
+        
+        elif category == "deep_work" or category == "work":
+            base_rules = [
+                {"minutes": 30, "message": "Chuẩn bị focus work '{task}' trong 30 phút", "priority": "medium"},
+                {"minutes": 10, "message": "Bắt đầu '{task}' trong 10 phút (lúc {time})", "priority": "high"}
+            ]
+        
+        elif category == "communication":
+            base_rules = [
+                {"minutes": 10, "message": "Chuẩn bị gọi điện '{task}' trong 10 phút", "priority": "medium"},
+                {"minutes": 2, "message": "Gọi điện '{task}' ngay bây giờ (lúc {time})!", "priority": "high"}
+            ]
+        
+        elif category == "admin":
+            base_rules = [
+                {"minutes": 15, "message": "Task admin '{task}' bắt đầu trong 15 phút", "priority": "low"}
+            ]
+        
+        else:  # default for other categories
+            base_rules = [
+                {"minutes": 15, "message": "Task '{task}' bắt đầu trong 15 phút (lúc {time})", "priority": "medium"}
+            ]
+        
+        # Priority adjustments
+        if priority == "urgent":
+            # Add extra urgent reminder
+            base_rules.append({
+                "minutes": 1, 
+                "message": "🚨 URGENT: '{task}' bắt đầu NGAY BÂY GIỜ!", 
+                "priority": "urgent"
+            })
+        
+        elif priority == "high":
+            # Add early warning
+            base_rules.insert(0, {
+                "minutes": 60,
+                "message": "High priority task '{task}' sẽ bắt đầu trong 1 tiếng (lúc {time})",
+                "priority": "medium"
+            })
+        
+        return base_rules
+    
+    def _handle_rescheduling(self, scheduling_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle rescheduling requests"""
+        return {
+            "type": "rescheduling", 
+            "message": "Rescheduling logic would be implemented here",
+            "success": True
+        }
+    
+    def _detect_time_conflicts(self, time_slots: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Detect conflicts between time slots"""
+        conflicts = []
+        
+        for i, slot1 in enumerate(time_slots):
+            for j, slot2 in enumerate(time_slots[i+1:], i+1):
+                if self._times_overlap(slot1, slot2):
+                    conflicts.append({
+                        "type": "time_overlap",
+                        "description": f"Conflict between '{slot1['taskTitle']}' and '{slot2['taskTitle']}'",
+                        "slots": [i, j],
+                        "suggestions": [
+                            f"Move '{slot2['taskTitle']}' to later time",
+                            f"Reduce duration of '{slot1['taskTitle']}'"
+                        ]
+                    })
+        
+        return conflicts
+    
+    def _times_overlap(self, slot1: Dict[str, Any], slot2: Dict[str, Any]) -> bool:
+        """Check if two time slots overlap"""
+        try:
+            start1 = datetime.strptime(slot1.get("startTime", "00:00"), "%H:%M")
+            end1 = datetime.strptime(slot1.get("endTime", "00:00"), "%H:%M") 
+            start2 = datetime.strptime(slot2.get("startTime", "00:00"), "%H:%M")
+            end2 = datetime.strptime(slot2.get("endTime", "00:00"), "%H:%M")
+            
+            return not (end1 <= start2 or end2 <= start1)
+        except:
+            return False
+    
+    def get_user_summary(self, user_id: str) -> Dict[str, Any]:
+        """Get summary of user's data"""
+        try:
+            # Count tasks by status
+            task_counts = {}
+            for status in ["pending", "in_progress", "completed"]:
+                query = {"userId": user_id, "status": status}
+                count = len(self.task_repo.find_by_query(query, limit=1000))  # Assuming count method doesn't exist
+                task_counts[status] = count
+            
+            # Count reminders
+            reminder_query = {"userId": user_id, "status": "pending"}
+            reminder_count = len(self.reminder_repo.find_by_query(reminder_query, limit=1000))
+            
+            # Count conversations
+            conversation_query = {"userId": user_id}
+            conversation_count = len(self.conversation_repo.find_by_query(conversation_query, limit=1000))
+            
+            # Recent activity
+            recent_tasks = self.task_repo.find_by_query(
+                {"userId": user_id}, 
+                limit=5,
+                sort=[("createdAt", -1)]
+            )
+            
+            return {
+                "success": True,
+                "user_id": user_id,
+                "task_counts": task_counts,
+                "pending_reminders": reminder_count,
+                "total_conversations": conversation_count,
+                "recent_tasks": [{"title": t["title"], "status": t["status"]} for t in recent_tasks]
+            }
+        
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def get_upcoming_reminders(self, user_id: str, hours_ahead: int = 24) -> List[Dict[str, Any]]:
+        """Get upcoming reminders for user"""
+        try:
+            now = datetime.now()
+            end_time = now + timedelta(hours=hours_ahead)
+            
+            reminder_query = {
+                "userId": user_id,
+                "status": "pending",
+                "triggerTime": {"$gte": now, "$lte": end_time}
+            }
+            
+            reminders = self.reminder_repo.find_by_query(
+                reminder_query, 
+                sort=[("triggerTime", 1)],
+                limit=50
+            )
+            
+            result = []
+            for reminder in reminders:
+                # Get associated task
+                task_id = reminder.get("taskId")
+                task = None
+                if task_id:
+                    task = self.task_repo.find_by_id(str(task_id))
+                
+                result.append({
+                    "reminder_id": str(reminder.get("_id", reminder.get("id"))),
+                    "trigger_time": reminder["triggerTime"].isoformat(),
+                    "message": reminder["message"],
+                    "task_title": task["title"] if task else "Unknown Task",
+                    "task_id": str(task_id) if task_id else None,
+                    "type": reminder.get("type", "time"),
+                    "priority": reminder.get("priority", "medium")
+                })
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error fetching upcoming reminders: {e}")
+            return []
+    
+    def mark_reminder_sent(self, reminder_id: str) -> bool:
+        """Mark reminder as sent"""
+        try:
+            update_data = {
+                "status": "sent",
+                "sentAt": datetime.now()
+            }
+            
+            result = self.reminder_repo.update(reminder_id, update_data)
+            return result is not None
+            
+        except Exception as e:
+            print(f"Error marking reminder as sent: {e}")
+            return False

@@ -1,0 +1,26 @@
+from pymongo import MongoClient
+from app.core.config import settings
+from typing import Optional
+
+class Database:
+    client: Optional[MongoClient] = None
+    database = None
+
+db = Database()
+
+def get_database():
+    return db.database
+
+def init_database():
+    db.client = MongoClient(settings.MONGODB_URL)
+    db.database = db.client[settings.DATABASE_NAME]
+    
+    db.database.tasks.create_index([("userId", 1), ("status", 1)])
+    db.database.tasks.create_index([("userId", 1), ("dueDate", 1), ("dueTime", 1)])
+    db.database.conversations.create_index([("userId", 1), ("sessionId", 1)])
+    db.database.reminders.create_index([("userId", 1), ("triggerTime", 1)])
+    db.database.schedules.create_index([("userId", 1), ("date", 1)])
+
+def close_database():
+    if db.client:
+        db.client.close()

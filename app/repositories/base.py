@@ -44,3 +44,19 @@ class BaseRepository(Generic[T], ABC):
     
     def count(self, query: Dict[str, Any]) -> int:
         return self.get_collection().count_documents(query)
+    
+    def find_by_query(self, query: Dict[str, Any], limit: int = None, 
+                     sort: List[tuple] = None) -> List[Dict[str, Any]]:
+        """
+        Enhanced query method with sorting support
+        sort parameter: List of tuples like [("field", 1)] for ascending, [("field", -1)] for descending
+        """
+        cursor = self.get_collection().find(query)
+        
+        if sort:
+            cursor = cursor.sort(sort)
+        
+        if limit:
+            cursor = cursor.limit(limit)
+            
+        return list(cursor)

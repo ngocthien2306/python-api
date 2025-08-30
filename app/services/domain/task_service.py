@@ -152,7 +152,7 @@ class TaskService:
                 "tasks_found": len(tasks),
                 "tasks": [
                     {
-                        "id": task.get("_id", task.get("id")), 
+                        "id": str(task.get("_id", task.get("id"))), 
                         "title": task["title"], 
                         "status": task["status"],
                         "priority": task.get("priority"),

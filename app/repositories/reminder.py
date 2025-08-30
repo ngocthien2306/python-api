@@ -21,3 +21,9 @@ class ReminderRepository(BaseRepository[Reminder]):
             "status": "sent",
             "sentAt": datetime.now()
         })
+    
+    def delete_by_task_id(self, task_id: str) -> int:
+        """Delete all reminders associated with a task"""
+        from bson import ObjectId
+        result = self.get_collection().delete_many({"taskId": ObjectId(task_id)})
+        return result.deleted_count

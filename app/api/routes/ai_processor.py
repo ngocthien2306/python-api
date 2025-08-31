@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from app.core.auth import get_current_user_token
+from app.models.user import TokenData
 from app.services.ai_processor import AIProcessorService
 from app.core.dependencies import (
     get_database_manager, 
@@ -16,7 +18,7 @@ router = APIRouter()
 @router.post("/process-conversation", response_model=APIResponse)
 async def process_conversation(
     request: ProcessConversationRequest,
-    db_manager = Depends(get_database_manager)
+    db_manager = Depends(get_database_manager),
 ):
     try:
         ai_processor = AIProcessorService(db_manager)
@@ -37,7 +39,8 @@ async def health_check():
 @router.get("/stats/{user_id}")
 async def get_user_stats(
     user_id: str,
-    analytics_service = Depends(get_user_analytics_service)
+    analytics_service = Depends(get_user_analytics_service),
+    current_user_token: TokenData = Depends(get_current_user_token)
 ):
     """Get comprehensive user statistics using the new analytics service"""
     try:
@@ -62,7 +65,8 @@ async def get_user_tasks(
     category: str = None,
     priority: str = None,
     limit: int = 20,
-    task_service = Depends(get_task_service)
+    task_service = Depends(get_task_service),
+    current_user_token: TokenData = Depends(get_current_user_token)
 ):
     """Get user tasks with filters using TaskService"""
     try:

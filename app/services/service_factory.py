@@ -2,12 +2,14 @@ from app.repositories.conversation import ConversationRepository
 from app.repositories.task import TaskRepository
 from app.repositories.reminder import ReminderRepository
 from app.repositories.schedule import ScheduleRepository
+from app.repositories.user import UserRepository
 
 from app.services.domain.task_service import TaskService
 from app.services.domain.reminder_service import ReminderService
 from app.services.domain.schedule_service import ScheduleService
 from app.services.domain.conversation_service import ConversationService
 from app.services.domain.user_analytics_service import UserAnalyticsService
+from app.services.domain.user_service import UserService
 from app.services.scheduling.conflict_detector import ConflictDetectionService
 from app.services.database_manager import DatabaseManagerService
 
@@ -22,11 +24,13 @@ class ServiceFactory:
                  conversation_repo: ConversationRepository,
                  task_repo: TaskRepository, 
                  reminder_repo: ReminderRepository,
-                 schedule_repo: ScheduleRepository):
+                 schedule_repo: ScheduleRepository,
+                 user_repo: UserRepository):
         self.conversation_repo = conversation_repo
         self.task_repo = task_repo
         self.reminder_repo = reminder_repo
         self.schedule_repo = schedule_repo
+        self.user_repo = user_repo
         
         # Initialize services with proper dependencies
         self._initialize_services()
@@ -38,6 +42,7 @@ class ServiceFactory:
         self.task_service = TaskService(self.task_repo)
         self.reminder_service = ReminderService(self.reminder_repo, self.task_repo)
         self.conversation_service = ConversationService(self.conversation_repo)
+        self.user_service = UserService(self.user_repo)
         
         # Specialized services
         self.conflict_detector = ConflictDetectionService()
@@ -64,7 +69,8 @@ class ServiceFactory:
             self.reminder_service,
             self.schedule_service,
             self.conversation_service,
-            self.user_analytics_service
+            self.user_analytics_service,
+            self.user_service
         )
     
     def get_database_manager(self) -> DatabaseManagerService:
@@ -94,12 +100,17 @@ class ServiceFactory:
     def get_conflict_detector(self) -> ConflictDetectionService:
         """Get conflict detection service for direct access"""
         return self.conflict_detector
+    
+    def get_user_service(self) -> UserService:
+        """Get user service for direct access"""
+        return self.user_service
 
 
 # Convenience function for creating the factory
 def create_service_factory(conversation_repo: ConversationRepository,
                           task_repo: TaskRepository,
                           reminder_repo: ReminderRepository,
-                          schedule_repo: ScheduleRepository) -> ServiceFactory:
+                          schedule_repo: ScheduleRepository,
+                          user_repo: UserRepository) -> ServiceFactory:
     """Create and configure service factory with repositories"""
-    return ServiceFactory(conversation_repo, task_repo, reminder_repo, schedule_repo)
+    return ServiceFactory(conversation_repo, task_repo, reminder_repo, schedule_repo, user_repo)

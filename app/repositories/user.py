@@ -29,7 +29,19 @@ class UserRepository:
                     "avatar_url": None,
                     "date_of_birth": None,
                     "occupation": None,
-                    "company": None
+                    "company": None,
+                    # Extended profile fields for onboarding
+                    "industry": None,
+                    "position_level": None,
+                    "work_location": None,
+                    "interests": [],
+                    # Onboarding status fields
+                    "is_onboarding_completed": False,
+                    "onboarding_step": 0,
+                    "completed_steps": [],
+                    "onboarding_started_at": None,
+                    "onboarding_completed_at": None,
+                    "skip_onboarding": False
                 },
                 "personality": {
                     "communication_style": "friendly",
@@ -39,7 +51,23 @@ class UserRepository:
                     "interests": [],
                     "timezone": "UTC",
                     "language_preference": "en",
-                    "custom_instructions": None
+                    "custom_instructions": None,
+                    # Extended personality fields for onboarding
+                    "working_hours": None,
+                    "break_style": None,
+                    "primary_goals": [],
+                    "task_priorities": None,
+                    "planning_horizon": None,
+                    "success_metrics": [],
+                    "motivation_factors": [],
+                    "learning_style": None,
+                    "stress_management": [],
+                    "reminder_style": None,
+                    "feedback_preference": None,
+                    "privacy_level": None,
+                    "device_usage": None,
+                    "tech_level": None,
+                    "notification_preferences": []
                 },
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
@@ -95,7 +123,7 @@ class UserRepository:
         try:
             update_data = {}
             
-            # Update profile fields
+            # Update profile fields - Basic fields
             if user_data.first_name is not None:
                 update_data["profile.first_name"] = user_data.first_name
             if user_data.last_name is not None:
@@ -111,9 +139,33 @@ class UserRepository:
             if user_data.company is not None:
                 update_data["profile.company"] = user_data.company
             
+            # Update profile fields - Extended fields
+            if user_data.industry is not None:
+                update_data["profile.industry"] = user_data.industry
+            if user_data.position_level is not None:
+                update_data["profile.position_level"] = user_data.position_level
+            if user_data.work_location is not None:
+                update_data["profile.work_location"] = user_data.work_location
+            if user_data.interests is not None:
+                update_data["profile.interests"] = user_data.interests
+            
+            # Update profile fields - Onboarding status
+            if user_data.is_onboarding_completed is not None:
+                update_data["profile.is_onboarding_completed"] = user_data.is_onboarding_completed
+            if user_data.onboarding_step is not None:
+                update_data["profile.onboarding_step"] = user_data.onboarding_step
+            if user_data.completed_steps is not None:
+                update_data["profile.completed_steps"] = user_data.completed_steps
+            if user_data.onboarding_started_at is not None:
+                update_data["profile.onboarding_started_at"] = user_data.onboarding_started_at
+            if user_data.onboarding_completed_at is not None:
+                update_data["profile.onboarding_completed_at"] = user_data.onboarding_completed_at
+            if user_data.skip_onboarding is not None:
+                update_data["profile.skip_onboarding"] = user_data.skip_onboarding
+            
             # Update personality fields
             if user_data.personality is not None:
-                personality_dict = user_data.personality.dict()
+                personality_dict = user_data.personality.model_dump()
                 for key, value in personality_dict.items():
                     if value is not None:
                         update_data[f"personality.{key}"] = value

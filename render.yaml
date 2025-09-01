@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: fastapi-app
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: ENVIRONMENT
+        value: production
+      - key: MONGODB_URL
+        fromDatabase:
+          name: mongodb-atlas
+          property: connectionString
+      - key: DATABASE_NAME
+        value: ai_assistant
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        value: "8000"
+      - key: DEBUG
+        value: "False"

@@ -12,6 +12,22 @@ class UserPersonality(BaseModel):
     timezone: Optional[str] = "UTC"                 # user timezone
     language_preference: Optional[str] = "en"       # language preference
     custom_instructions: Optional[str] = None       # custom ChatGPT instructions
+    # Extended personality fields for onboarding
+    working_hours: Optional[str] = None
+    break_style: Optional[str] = None
+    primary_goals: List[str] = []
+    task_priorities: Optional[str] = None
+    planning_horizon: Optional[str] = None
+    success_metrics: List[str] = []
+    motivation_factors: List[str] = []
+    learning_style: Optional[str] = None
+    stress_management: List[str] = []
+    reminder_style: Optional[str] = None
+    feedback_preference: Optional[str] = None
+    privacy_level: Optional[str] = None
+    device_usage: Optional[str] = None
+    tech_level: Optional[str] = None
+    notification_preferences: List[str] = []
 
 class UserProfile(BaseModel):
     first_name: Optional[str] = None
@@ -21,6 +37,18 @@ class UserProfile(BaseModel):
     date_of_birth: Optional[str] = None
     occupation: Optional[str] = None
     company: Optional[str] = None
+    # Extended profile fields for onboarding
+    industry: Optional[str] = None
+    position_level: Optional[str] = None
+    work_location: Optional[str] = None
+    interests: List[str] = []
+    # Onboarding status fields
+    is_onboarding_completed: bool = False
+    onboarding_step: int = 0
+    completed_steps: List[int] = []
+    onboarding_started_at: Optional[str] = None
+    onboarding_completed_at: Optional[str] = None
+    skip_onboarding: bool = False
 
 class User(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
@@ -57,7 +85,23 @@ class UserUpdate(BaseModel):
     date_of_birth: Optional[str] = None
     occupation: Optional[str] = None
     company: Optional[str] = None
+    # Extended profile fields
+    industry: Optional[str] = None
+    position_level: Optional[str] = None
+    work_location: Optional[str] = None
+    interests: Optional[List[str]] = None
+    # Onboarding fields
+    is_onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[int] = None
+    completed_steps: Optional[List[int]] = None
+    onboarding_started_at: Optional[str] = None
+    onboarding_completed_at: Optional[str] = None
+    skip_onboarding: Optional[bool] = None
+    # Personality
     personality: Optional[UserPersonality] = None
+
+# Create alias for backward compatibility
+PersonalityUpdate = UserPersonality
 
 class UserLogin(BaseModel):
     username: str

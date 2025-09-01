@@ -6,6 +6,7 @@ from app.services.domain.reminder_service import ReminderService
 from app.services.domain.schedule_service import ScheduleService
 from app.services.domain.conversation_service import ConversationService
 from app.services.domain.user_analytics_service import UserAnalyticsService
+from app.services.domain.user_service import UserService
 import traceback
 
 
@@ -20,12 +21,14 @@ class DatabaseManagerService:
                  reminder_service: ReminderService,
                  schedule_service: ScheduleService,
                  conversation_service: ConversationService,
-                 user_analytics_service: UserAnalyticsService):
+                 user_analytics_service: UserAnalyticsService,
+                 user_service: UserService):
         self.task_service = task_service
         self.reminder_service = reminder_service
         self.schedule_service = schedule_service
         self.conversation_service = conversation_service
         self.user_analytics_service = user_analytics_service
+        self.user_service = user_service
     
     def process_ai_response(self, parsed_response: AIResponse, user_input: str, 
                           user_id: str) -> Dict[str, Any]:
@@ -158,3 +161,14 @@ class DatabaseManagerService:
     def get_schedule_summary(self, user_id: str, days_ahead: int = 7) -> Dict[str, Any]:
         """Get schedule summary using ScheduleService"""  
         return self.schedule_service.get_user_schedule_summary(user_id, days_ahead)
+    
+    # User Profile Management Methods for Onboarding
+    
+    async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get user profile data using UserService"""
+        return await self.user_service.get_user_profile(user_id)
+    
+    async def update_user_profile(self, user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user profile using UserService"""
+        return await self.user_service.update_user_profile(user_id, updates)
+    

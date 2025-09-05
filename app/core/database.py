@@ -12,15 +12,23 @@ def get_database():
     return db.database
 
 def init_database():
-    # MongoDB connection with SSL settings for Atlas
-    db.client = MongoClient(
-        settings.MONGODB_URL,
-        tls=True,
-        tlsAllowInvalidCertificates=True,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=10000,
-        socketTimeoutMS=10000
-    )
+    if settings.is_production():
+        db.client = MongoClient(
+            settings.MONGODB_URL,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
+    else:
+        db.client = MongoClient(
+            settings.MONGODB_URL,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
+    
     db.database = db.client[settings.DATABASE_NAME]
     
     # Create indexes for existing collections

@@ -62,6 +62,7 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
+    push_subscriptions: List[Dict[str, Any]] = []
     
     class Config:
         populate_by_name = True

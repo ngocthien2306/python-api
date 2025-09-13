@@ -71,7 +71,8 @@ class UserRepository:
                 },
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
-                "last_login": None
+                "last_login": None,
+                "push_subscriptions": []
             }
             
             result = self.collection.insert_one(user_dict)
@@ -207,3 +208,41 @@ class UserRepository:
         if not verify_password(password, user.hashed_password):
             return None
         return user
+    
+    def add_push_subscription(self, user_id: str, subscription_data: Dict[str, Any]) -> bool:
+        """Add a push subscription for the user."""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$push": {"push_subscriptions": subscription_data}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error adding push subscription: {str(e)}")
+            return False
+    
+    def remove_push_subscription(self, user_id: str, endpoint: str) -> bool:
+        """Remove a push subscription by endpoint."""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$pull": {"push_subscriptions": {"endpoint": endpoint}}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error removing push subscription: {str(e)}")
+            return False
+    
+    def get_user_push_subscriptions(self, user_id: str) -> list:
+        """Get all push subscriptions for a user."""
+        try:
+            user_doc = self.collection.find_one(
+                {"_id": ObjectId(user_id)},
+                {"push_subscriptions": 1}
+            )
+            if user_doc:
+                return user_doc.get("push_subscriptions", [])
+            return []
+        except Exception as e:
+            print(f"Error getting push subscriptions: {str(e)}")
+            return []

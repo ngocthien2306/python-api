@@ -40,7 +40,7 @@ async def health_check():
 async def get_user_stats(
     user_id: str,
     analytics_service = Depends(get_user_analytics_service),
-    current_user_token: TokenData = Depends(get_current_user_token)
+    # current_user_token: TokenData = Depends(get_current_user_token)
 ):
     """Get comprehensive user statistics using the new analytics service"""
     try:
@@ -55,8 +55,6 @@ async def get_user_stats(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ============ NEW ROUTES USING REFACTORED SERVICES ============
 
 @router.get("/tasks/{user_id}")
 async def get_user_tasks(

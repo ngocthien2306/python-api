@@ -231,27 +231,98 @@ async def send_task_reminder_websocket(username: str):
         tasks = task_result["tasks"]
         selected_task = random.choice(tasks)
         
-        # Create notification payload
+        # Save notification to database first
+        from app.repositories.notification import NotificationRepository
+        from app.models.notification import (
+            NotificationCreate, 
+            NotificationType, 
+            NotificationPriority,
+            NotificationAction,
+            NotificationData,
+            TaskInfo
+        )
+        
+        notification_repo = NotificationRepository()
+        
+        # Create notification data models
+        # Convert datetime to string if needed
+        due_date = selected_task.get('dueDate')
+        if due_date and hasattr(due_date, 'isoformat'):
+            due_date = due_date.isoformat()
+        elif due_date:
+            due_date = str(due_date)
+            
+        task_info = TaskInfo(
+            id=selected_task.get('id'),
+            title=selected_task['title'],
+            priority=selected_task.get('priority', 'medium'),
+            status=selected_task.get('status'),
+            due_date=due_date,
+            due_time=selected_task.get('dueTime'),
+            category=selected_task.get('category')
+        )
+        
+        action = NotificationAction(
+            type="navigate",
+            url="/calendar"
+        )
+        
+        data = NotificationData(
+            task=task_info,
+            extra={"notification_type": "task_reminder"}
+        )
+        
+        # Create notification in database
+        notification_create = NotificationCreate(
+            user_id=str(user.id),
+            title="📋 Task Reminder",
+            body=selected_task['title'],
+            type=NotificationType.TASK_REMINDER,
+            priority=NotificationPriority.MEDIUM,
+            action=action,
+            data=data,
+            metadata={
+                "source": "websocket_api",
+                "endpoint": "send-task-reminder"
+            }
+        )
+        
+        # Save to database
+        stored_notification = notification_repo.create_notification(notification_create)
+        
+        # Create WebSocket payload
         notification = {
-            "title": "📋 Task Reminder",
-            "body": selected_task['title'],
+            "type": "task_notification",
+            "id": stored_notification.id,  # Include database ID
+            "title": stored_notification.title,
+            "body": stored_notification.body,
             "task": {
                 "id": selected_task.get('id'),
                 "title": selected_task['title'],
                 "priority": selected_task.get('priority', 'medium'),
                 "status": selected_task.get('status'),
-                "due_date": selected_task.get('dueDate'),
+                "due_date": due_date,  # Use converted due_date
                 "due_time": selected_task.get('dueTime'),
             },
             "action": {
                 "type": "navigate",
                 "url": "/calendar"
             },
-            "notification_type": "task_reminder"
+            "notification_type": "task_reminder",
+            "timestamp": stored_notification.created_at.isoformat(),
+            "stored": True  # Indicate this is stored in database
         }
         
         # Send via WebSocket
         success = await connection_manager.send_to_user(str(user.id), notification)
+        
+        # Record delivery attempt
+        if success:
+            notification_repo.record_delivery(
+                stored_notification.id, 
+                "websocket", 
+                success=True
+            )
         
         if success:
             return {
@@ -317,4 +388,24 @@ async def websocket_status():
             user_id: len(connections) 
             for user_id, connections in connection_manager.active_connections.items()
         }
+    }
+
+@router.post("/ws/cleanup/{user_id}")
+async def cleanup_user_connections(user_id: str):
+    """Force cleanup all connections for a user"""
+    if user_id in connection_manager.active_connections:
+        connections_to_close = list(connection_manager.active_connections[user_id])
+        for websocket in connections_to_close:
+            try:
+                await websocket.close()
+            except:
+                pass
+        connection_manager.active_connections[user_id] = set()
+        if not connection_manager.active_connections[user_id]:
+            del connection_manager.active_connections[user_id]
+    
+    return {
+        "success": True,
+        "message": f"Cleaned up connections for user {user_id}",
+        "remaining_connections": connection_manager.get_total_connections()
     }

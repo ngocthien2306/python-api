@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_database
-from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications
+from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications, notifications, tasks
 
 def create_application() -> FastAPI:
     app = FastAPI(
@@ -25,6 +25,8 @@ def create_application() -> FastAPI:
     app.include_router(chatgpt_integration.router, prefix="/api/v1/chatgpt", tags=["ChatGPT Integration"])
     app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["Onboarding"])
     app.include_router(websocket_notifications.router, prefix="/api/v1", tags=["WebSocket Notifications"])
+    app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
+    app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
     
     @app.on_event("startup")
     async def startup_event():

@@ -59,6 +59,36 @@ class TaskUpdate(BaseModel):
     actual_duration: Optional[int] = None
     completed_at: Optional[datetime] = None
 
+class TaskUpdateRequest(BaseModel):
+    """Model for task update requests from frontend (camelCase)"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[str] = None
+    tags: Optional[List[str]] = None
+    dueDate: Optional[datetime] = None  # camelCase from frontend
+    dueTime: Optional[str] = None       # camelCase from frontend
+    estimatedDuration: Optional[int] = None
+    actualDuration: Optional[int] = None
+    completedAt: Optional[datetime] = None
+    
+    def to_task_update(self) -> TaskUpdate:
+        """Convert camelCase request to snake_case TaskUpdate"""
+        return TaskUpdate(
+            title=self.title,
+            description=self.description,
+            priority=self.priority,
+            category=self.category,
+            status=self.status,
+            tags=self.tags,
+            due_date=self.dueDate,
+            due_time=self.dueTime,
+            estimated_duration=self.estimatedDuration,
+            actual_duration=self.actualDuration,
+            completed_at=self.completedAt
+        )
+
 class TaskResponse(BaseModel):
     id: str
     user_id: str

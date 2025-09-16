@@ -129,3 +129,7 @@ logs/
 *.log
 temp/
 tmp/
+
+.env
+.env.local
+.env.prod

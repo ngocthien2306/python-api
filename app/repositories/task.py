@@ -9,12 +9,11 @@ class TaskRepository(BaseRepository[Task]):
     
     def get_tasks_by_user_id(self, user_id: str) -> List[Task]:
         """Get all tasks for a specific user"""
-        task_dicts = self.find({"user_id": user_id})
+        task_dicts = self.find({"userId": user_id})
         tasks = []
         for task_dict in task_dicts:
-            # Convert _id to id for the Task model
-            if "_id" in task_dict:
-                task_dict["id"] = str(task_dict["_id"])
+            # Convert database format to Task model format
+            task_dict = self._convert_db_to_task_format(task_dict)
             tasks.append(Task(**task_dict))
         return tasks
     
@@ -67,8 +66,53 @@ class TaskRepository(BaseRepository[Task]):
         """Get a single task by ID"""
         task_dict = self.find_by_id(task_id)
         if task_dict:
-            # Convert _id to id for the Task model
-            if "_id" in task_dict:
-                task_dict["id"] = str(task_dict["_id"])
+            # Convert database format to Task model format
+            task_dict = self._convert_db_to_task_format(task_dict)
             return Task(**task_dict)
         return None
+    
+    def _convert_db_to_task_format(self, task_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert database camelCase format to Task model snake_case format"""
+        converted = {}
+        
+        # Handle _id -> id conversion
+        if "_id" in task_dict:
+            converted["id"] = str(task_dict["_id"])
+        
+        # Convert camelCase database fields to snake_case model fields
+        field_mapping = {
+            "userId": "user_id",
+            "dueDate": "due_date", 
+            "dueTime": "due_time",
+            "estimatedDuration": "estimated_duration",
+            "actualDuration": "actual_duration",
+            "creationContext": "creation_context",
+            "lastModifiedBy": "last_modified_by",
+            "scheduledSlot": "scheduled_slot",
+            "createdAt": "created_at",
+            "updatedAt": "updated_at",
+            "completedAt": "completed_at"
+        }
+        
+        # Copy direct fields (no conversion needed)
+        direct_fields = ["title", "description", "priority", "category", "status", "tags", "subtasks"]
+        for field in direct_fields:
+            if field in task_dict:
+                converted[field] = task_dict[field]
+        
+        # Convert mapped fields
+        for db_field, model_field in field_mapping.items():
+            if db_field in task_dict:
+                converted[model_field] = task_dict[db_field]
+        
+        # Set defaults for missing required fields
+        if "user_id" not in converted:
+            converted["user_id"] = ""
+        if "title" not in converted:
+            converted["title"] = "Untitled Task"
+        if "tags" not in converted:
+            converted["tags"] = []
+        if "subtasks" not in converted:
+            converted["subtasks"] = []
+            
+        return converted

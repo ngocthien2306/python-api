@@ -1,0 +1,57 @@
+# Test Commands for Chat Endpoint
+
+## 1. Test Audio Service Health
+curl http://localhost:3000/health
+
+## 2. Test Python API Health  
+curl http://localhost:8000/docs
+
+## 3. Login (get token first)
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d @sample_data/login_request.json
+
+## 4. Test Basic Chat (replace YOUR_TOKEN with actual token)
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d @sample_data/chat_basic.json
+
+## 5. Test Task Creation Chat
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d @sample_data/chat_task_creation.json
+
+## 6. Test Conversational Chat
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d @sample_data/chat_conversation.json
+
+## 7. Test Scheduling Chat
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d @sample_data/chat_scheduling.json
+
+## 8. Test Audio Generation (Direct to Node.js)
+curl -X POST http://localhost:3000/generate-audio \
+  -H "Content-Type: application/json" \
+  -d @sample_data/audio_generation.json
+
+## 9. Get Chat History
+curl -X GET "http://localhost:8000/api/v1/chat/history/test_session_basic?limit=10" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+## 10. Create Chat Session
+curl -X POST http://localhost:8000/api/v1/chat/sessions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+## 11. Get All Chat Sessions
+curl -X GET http://localhost:8000/api/v1/chat/sessions \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+## 12. Test Audio Service Stats
+curl http://localhost:3000/stats

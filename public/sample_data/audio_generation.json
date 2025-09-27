@@ -1,0 +1,19 @@
+{
+  "messages": [
+    {
+      "message_id": "test_001",
+      "text": "Xin chào! Tôi là AI Work Assistant của bạn.",
+      "voice": "nova"
+    },
+    {
+      "message_id": "test_002",
+      "text": "Tôi có thể giúp bạn quản lý tasks, lên schedule, hay chỉ đơn giản là trò chuyện thôi!",
+      "voice": "nova"
+    },
+    {
+      "message_id": "test_003",
+      "text": "Hôm nay bạn muốn làm gì?",
+      "voice": "nova"
+    }
+  ]
+}

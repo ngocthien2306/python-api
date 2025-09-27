@@ -1,0 +1,10 @@
+{
+  "message": "Xin chào! Nhắc tôi họp team lúc 2 giờ chiều mai",
+  "session_id": "test_session_basic",
+  "user_id": "68b4c6d9318be756896bf562",
+  "context": {
+    "timestamp": "2024-09-16T08:00:00.000Z",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "user_agent": "Test Client"
+  }
+}

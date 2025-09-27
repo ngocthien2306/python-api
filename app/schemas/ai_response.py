@@ -43,8 +43,11 @@ class AIResponse(BaseModel):
     intent: str
     confidence: float
     messages: List[Message]
-    taskAction: TaskAction
-    schedulingAction: SchedulingAction
+    taskAction: Optional[TaskAction] = None
+    schedulingAction: Optional[SchedulingAction] = None
+    needsConfirmation: Optional[bool] = False
+    confirmationType: Optional[str] = None
+    pendingData: Optional[Dict[str, Any]] = None
 
 class ProcessConversationRequest(BaseModel):
     parsed_response: AIResponse

@@ -12,13 +12,16 @@ class TaskService:
     
     def create_task(self, task_data: Dict[str, Any], user_input: str, user_id: str) -> Dict[str, Any]:
         """Create a new task"""
-        task = Task(user_id, task_data.get("title", "Untitled Task"))
-        task.description = task_data.get("description", "")
-        task.priority = task_data.get("priority", "medium")
-        task.category = task_data.get("category", "other")
-        task.status = task_data.get("status", "pending")
-        task.tags = task_data.get("tags", [])
-        task.creation_context = user_input
+        task = Task(
+            user_id=user_id,
+            title=task_data.get("title", "Untitled Task"),
+            description=task_data.get("description", ""),
+            priority=task_data.get("priority", "medium"),
+            category=task_data.get("category", "other"),
+            status=task_data.get("status", "pending"),
+            tags=task_data.get("tags", []),
+            creation_context=user_input
+        )
         
         # Handle due date/time
         if task_data.get("dueDate"):
@@ -34,7 +37,7 @@ class TaskService:
         
         # Add subtasks
         for subtask_title in task_data.get("subtasks", []):
-            task.subtasks.append(Subtask(subtask_title))
+            task.subtasks.append(Subtask(title=subtask_title))
         
         # Convert to database format
         task_doc = self._convert_task_to_db_format(task)
@@ -50,12 +53,15 @@ class TaskService:
     def create_scheduled_task(self, task_data: Dict[str, Any], user_id: str, 
                             scheduled_date: datetime, context: str = "scheduled") -> str:
         """Create a task for scheduling purposes"""
-        task = Task(user_id, task_data.get("title"))
-        task.description = f"Scheduled task: {task_data.get('title')}"
-        task.priority = task_data.get("priority", "medium")
-        task.category = task_data.get("category", "other")
-        task.tags = ["scheduled", "auto-generated"]
-        task.creation_context = context
+        task = Task(
+            user_id=user_id,
+            title=task_data.get("title", "Untitled Task"),
+            description=f"Scheduled task: {task_data.get('title')}",
+            priority=task_data.get("priority", "medium"),
+            category=task_data.get("category", "other"),
+            tags=["scheduled", "auto-generated"],
+            creation_context=context
+        )
         
         if task_data.get("startTime"):
             task.due_date = scheduled_date
@@ -195,7 +201,7 @@ class TaskService:
     
     def _convert_task_to_db_format(self, task: Task) -> Dict[str, Any]:
         """Convert Task model to database format"""
-        task_doc = task.to_dict()
+        task_doc = task.dict()
         task_doc["userId"] = task_doc.pop("user_id")
         task_doc["dueDate"] = task_doc.pop("due_date")
         task_doc["dueTime"] = task_doc.pop("due_time")

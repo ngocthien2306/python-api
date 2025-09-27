@@ -69,6 +69,9 @@ class DatabaseManagerService:
     def _handle_simple_task(self, parsed_response: AIResponse, user_input: str, user_id: str) -> Dict[str, Any]:
         """Handle simple task operations by delegating to TaskService"""
         task_action = parsed_response.taskAction
+        if not task_action:
+            return {"action": "none", "message": "No task action provided"}
+            
         action = task_action.action
         results = {"action": action}
         
@@ -112,6 +115,9 @@ class DatabaseManagerService:
     def _handle_scheduling(self, parsed_response: AIResponse, user_input: str, user_id: str) -> Dict[str, Any]:
         """Handle scheduling operations by delegating to ScheduleService"""
         scheduling_action = parsed_response.schedulingAction
+        if not scheduling_action:
+            return {"type": "none", "message": "No scheduling action provided"}
+            
         schedule_type = scheduling_action.type
         results = {"type": schedule_type}
         

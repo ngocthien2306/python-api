@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.api.routes.auth import get_current_user
@@ -14,10 +15,9 @@ def get_task_repository():
     db = get_database()
     return TaskRepository(db)
 
-@router.get("/tasks/{user_id}", response_model=List[TaskResponse])
+@router.get("/tasks-user/{user_id}", response_model=List[TaskResponse])
 async def get_user_tasks(
     user_id: str,
-    current_user=Depends(get_current_user),
     task_repo: TaskRepository = Depends(get_task_repository),
     user_repo: UserRepository = Depends(get_user_repository)
 ):
@@ -31,16 +31,8 @@ async def get_user_tasks(
                 detail="User not found"
             )
         
-        # For now, allow users to see only their own tasks
-        # In the future, you might want to add permission checks
-        if str(current_user.id) != str(target_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission denied"
-            )
-        
         # Get tasks for the user
-        tasks = task_repo.get_tasks_by_user_id(str(target_user.id))
+        tasks = task_repo.get_tasks_by_user_id(str(user_id))
         
         return [
             TaskResponse(
@@ -50,6 +42,7 @@ async def get_user_tasks(
                 status=task.status,
                 priority=task.priority,
                 due_date=task.due_date,
+                due_time=task.due_time,
                 created_at=task.created_at,
                 updated_at=task.updated_at,
                 user_id=str(task.user_id),
@@ -76,7 +69,7 @@ async def get_current_user_tasks(
 ):
     """Get tasks for the current authenticated user"""
     try:
-        tasks = task_repo.get_tasks_by_user_id(str(current_user.id))
+        tasks = task_repo.get_tasks_by_user_id(str(current_user.username))
         
         return [
             TaskResponse(
@@ -86,6 +79,7 @@ async def get_current_user_tasks(
                 status=task.status,
                 priority=task.priority,
                 due_date=task.due_date,
+                due_time=task.due_time,
                 created_at=task.created_at,
                 updated_at=task.updated_at,
                 user_id=str(task.user_id),
@@ -98,6 +92,7 @@ async def get_current_user_tasks(
         ]
         
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get tasks: {str(e)}"
@@ -153,6 +148,7 @@ async def update_task(
             status=updated_task.status,
             priority=updated_task.priority,
             due_date=updated_task.due_date,
+            due_time=updated_task.due_time,
             created_at=updated_task.created_at,
             updated_at=updated_task.updated_at,
             user_id=str(updated_task.user_id),

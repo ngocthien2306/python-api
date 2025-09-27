@@ -1,0 +1,10 @@
+{
+  "message": "Hôm nay tôi có meeting team lúc 10h, cần viết báo cáo quarterly 2 tiếng, và gọi 3 khách hàng. Sắp xếp schedule giúp tôi!",
+  "session_id": "test_session_scheduling",
+  "user_id": "68b4c6d9318be756896bf562",
+  "context": {
+    "timestamp": "2024-09-16T08:00:00.000Z",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "user_agent": "Test Client"
+  }
+}

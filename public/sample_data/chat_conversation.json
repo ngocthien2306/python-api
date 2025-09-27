@@ -1,0 +1,10 @@
+{
+  "message": "Chào bạn! Hôm nay tôi cảm thấy hơi stress với công việc. Bạn có lời khuyên gì không?",
+  "session_id": "test_session_conversation",
+  "user_id": "68b4c6d9318be756896bf562",
+  "context": {
+    "timestamp": "2024-09-16T08:00:00.000Z",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "user_agent": "Test Client"
+  }
+}

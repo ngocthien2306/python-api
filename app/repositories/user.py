@@ -246,3 +246,28 @@ class UserRepository:
         except Exception as e:
             print(f"Error getting push subscriptions: {str(e)}")
             return []
+    
+    def verify_user_email(self, user_id: str) -> bool:
+        """Mark user email as verified."""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"is_verified": True, "updated_at": datetime.utcnow()}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error verifying user email: {str(e)}")
+            return False
+    
+    def update_user_password(self, user_id: str, new_password: str) -> bool:
+        """Update user password."""
+        try:
+            hashed_password = get_password_hash(new_password)
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating user password: {str(e)}")
+            return False

@@ -49,7 +49,7 @@ class TaskRepository(BaseRepository[Task]):
         if task_update.due_date is not None:
             update_data["due_date"] = task_update.due_date
         if task_update.due_time is not None:
-            update_data["due_time"] = task_update.due_time
+            update_data["dueTime"] = task_update.due_time
         if task_update.estimated_duration is not None:
             update_data["estimated_duration"] = task_update.estimated_duration
         if task_update.actual_duration is not None:
@@ -58,7 +58,7 @@ class TaskRepository(BaseRepository[Task]):
             update_data["completed_at"] = task_update.completed_at
         
         # Always update the updated_at timestamp
-        update_data["updated_at"] = datetime.now()
+        update_data["updatedAt"] = datetime.now()
         
         return self.update(task_id, update_data)
     

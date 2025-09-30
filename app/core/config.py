@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: Optional[str] = None
     VAPID_SUBJECT: str = "mailto:your-email@example.com"
     
+    # Email Settings
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = "taskmanagement.agent@gmail.com"
+    SMTP_PASSWORD: str = ""  # App password for Gmail
+    SMTP_FROM_EMAIL: str = "taskmanagement.agent@gmail.com"
+    SMTP_FROM_NAME: str = "Task Management"
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+    FRONTEND_URL: str = "http://localhost:3000"
+    
     class Config:
         env_file = ".env"
 

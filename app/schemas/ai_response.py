@@ -20,7 +20,8 @@ class TaskData(BaseModel):
 
 class TaskAction(BaseModel):
     action: str
-    task: Optional[TaskData] = None
+    task: Optional[TaskData] = None  # Legacy format for single task
+    tasks: Optional[List[TaskData]] = None  # New format for multiple tasks
 
 class SchedulingTask(BaseModel):
     title: str

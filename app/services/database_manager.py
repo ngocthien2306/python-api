@@ -75,21 +75,49 @@ class DatabaseManagerService:
         action = task_action.action
         results = {"action": action}
         
-        if action == "create" and task_action.task:
-            # Create task using TaskService
-            task_result = self.task_service.create_task(
-                task_action.task.dict(), user_input, user_id
-            )
-            results.update(task_result)
+        if action == "create":
+            created_tasks = []
+            all_reminders = []
             
-            # Create reminders using ReminderService
-            if task_result.get("task_id"):
-                reminder_result = self.reminder_service.create_task_reminders(
-                    task_result["task_id"], 
-                    task_action.task.dict(), 
-                    user_id
+            # Handle multiple tasks (new format)
+            if hasattr(task_action, 'tasks') and task_action.tasks:
+                for task_data in task_action.tasks:
+                    # Create task using TaskService
+                    task_result = self.task_service.create_task(
+                        task_data.dict(), user_input, user_id
+                    )
+                    created_tasks.append(task_result)
+                    
+                    # Create reminders using ReminderService
+                    if task_result.get("task_id"):
+                        reminder_result = self.reminder_service.create_task_reminders(
+                            task_result["task_id"], 
+                            task_data.dict(), 
+                            user_id
+                        )
+                        all_reminders.extend(reminder_result)
+                        
+            # Handle single task (legacy format)
+            elif hasattr(task_action, 'task') and task_action.task:
+                task_result = self.task_service.create_task(
+                    task_action.task.dict(), user_input, user_id
                 )
-                results["reminders"] = reminder_result
+                created_tasks.append(task_result)
+                
+                # Create reminders using ReminderService
+                if task_result.get("task_id"):
+                    reminder_result = self.reminder_service.create_task_reminders(
+                        task_result["task_id"], 
+                        task_action.task.dict(), 
+                        user_id
+                    )
+                    all_reminders.extend(reminder_result)
+            
+            results.update({
+                "created_tasks": created_tasks,
+                "tasks_count": len(created_tasks),
+                "reminders": all_reminders
+            })
         
         elif action == "update":
             # Extract update data from task_action

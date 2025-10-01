@@ -48,6 +48,7 @@ class TaskRepository(BaseRepository[Task]):
             update_data["tags"] = task_update.tags
         if task_update.due_date is not None:
             update_data["due_date"] = task_update.due_date
+            update_data["dueDate"] = task_update.due_date
         if task_update.due_time is not None:
             update_data["dueTime"] = task_update.due_time
         if task_update.estimated_duration is not None:

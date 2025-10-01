@@ -21,6 +21,13 @@ class UserOnboardingService:
             
             # Prepare update data for user profile
             profile_updates = {
+                # Personal Info
+                "first_name": onboarding_dict.get("first_name"),
+                "last_name": onboarding_dict.get("last_name"),
+                "phone": onboarding_dict.get("phone"),
+                "date_of_birth": onboarding_dict.get("date_of_birth"),
+                "avatar_url": onboarding_dict.get("avatar_url"),
+                
                 # Professional Info
                 "occupation": onboarding_dict.get("occupation"),
                 "company": onboarding_dict.get("company"),
@@ -225,7 +232,8 @@ class UserOnboardingService:
                 "task_priorities", "planning_horizon", "success_metrics", 
                 "motivation_factors", "learning_style", "stress_management",
                 "reminder_style", "feedback_preference", "privacy_level",
-                "device_usage", "tech_level", "notification_preferences"
+                "device_usage", "tech_level", "notification_preferences",
+                "timezone", "language_preference"  # Added missing fields
             }
             
             # Get current profile to merge personality data

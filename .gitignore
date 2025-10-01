@@ -133,3 +133,4 @@ tmp/
 .env
 .env.local
 .env.prod
+uploads

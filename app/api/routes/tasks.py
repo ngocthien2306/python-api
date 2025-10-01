@@ -1,4 +1,5 @@
 import traceback
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.api.routes.auth import get_current_user
@@ -7,6 +8,10 @@ from app.repositories.task import TaskRepository
 from app.api.routes.auth import get_user_repository
 from app.core.database import get_database
 from app.models.task import Task, TaskResponse, TaskUpdate, TaskUpdateRequest
+from app.services.reminder_update_service import ReminderUpdateService
+from app.repositories.reminder import ReminderRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -141,6 +146,21 @@ async def update_task(
                 detail="Failed to retrieve updated task"
             )
         
+        # Update reminders if due_date or due_time changed
+        if task_update_request.dueDate is not None or task_update_request.dueTime is not None:
+            try:
+                reminder_service = ReminderUpdateService()
+                await reminder_service.update_reminders_for_task(
+                    task_id, 
+                    {
+                        'due_date': updated_task.due_date,
+                        'due_time': updated_task.due_time
+                    }
+                )
+            except Exception as e:
+                # Log error but don't fail the task update
+                print(f"Warning: Failed to update reminders for task {task_id}: {str(e)}")
+        
         return TaskResponse(
             id=str(updated_task.id),
             title=updated_task.title,
@@ -190,6 +210,16 @@ async def delete_task(
         #         detail="Permission denied: You can only delete your own tasks"
         #     )
         
+        # Delete all reminders associated with this task first
+        try:
+            db = get_database()
+            reminder_repo = ReminderRepository(db)
+            deleted_reminders_count = reminder_repo.delete_by_task_id(task_id)
+            logger.info(f"🗑️ Deleted {deleted_reminders_count} reminders for task {task_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to delete reminders for task {task_id}: {str(e)}")
+            # Continue with task deletion even if reminder deletion fails
+        
         # Delete the task
         success = task_repo.delete(task_id)
         if not success:
@@ -198,7 +228,10 @@ async def delete_task(
                 detail="Failed to delete task"
             )
         
-        return {"message": "Task deleted successfully"}
+        return {
+            "message": "Task deleted successfully",
+            "deleted_reminders": deleted_reminders_count if 'deleted_reminders_count' in locals() else 0
+        }
         
     except HTTPException:
         raise

@@ -28,7 +28,10 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "taskmanagement.agent@gmail.com"
     SMTP_FROM_NAME: str = "Task Management"
     EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str = "http://localhost:5173"
+    
+    # API Base URL for file serving (for production, set to your domain)
+    BASE_URL: Optional[str] = None  # If None, will auto-construct from API_HOST:API_PORT
     
     class Config:
         env_file = ".env"

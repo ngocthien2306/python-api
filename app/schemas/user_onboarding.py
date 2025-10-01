@@ -3,6 +3,13 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 class OnboardingProfileData(BaseModel):
+    # Personal Info
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    avatar_url: Optional[str] = None
+    
     # Professional Info
     occupation: Optional[str] = None
     company: Optional[str] = None

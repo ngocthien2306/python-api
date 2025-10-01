@@ -39,6 +39,9 @@ class TaskService:
         for subtask_title in task_data.get("subtasks", []):
             task.subtasks.append(Subtask(title=subtask_title))
         
+        # Add reference links
+        task.reference_links = task_data.get("referenceLinks", [])
+        
         # Convert to database format
         task_doc = self._convert_task_to_db_format(task)
         
@@ -75,6 +78,9 @@ class TaskService:
         }
         task.estimated_duration = int(task_data.get("duration", 60))
         
+        # Add reference links for scheduled tasks too
+        task.reference_links = task_data.get("referenceLinks", [])
+        
         task_doc = self._convert_task_to_db_format(task)
         return self.task_repo.create(task_doc)
     
@@ -97,6 +103,8 @@ class TaskService:
                     update_data[key] = value
                 elif key == "tags" and isinstance(value, list):
                     update_data["tags"] = value
+                elif key == "referenceLinks" and isinstance(value, list):
+                    update_data["referenceLinks"] = value
             
             result = self.task_repo.update(task_id, update_data)
             
@@ -164,7 +172,8 @@ class TaskService:
                         "priority": task.get("priority"),
                         "category": task.get("category"),
                         "dueDate": task.get("dueDate"),
-                        "dueTime": task.get("dueTime")
+                        "dueTime": task.get("dueTime"),
+                        "referenceLinks": task.get("referenceLinks", [])
                     } 
                     for task in tasks
                 ]
@@ -211,6 +220,7 @@ class TaskService:
         task_doc["scheduledSlot"] = task_doc.pop("scheduled_slot")
         task_doc["createdAt"] = task_doc.pop("created_at")
         task_doc["updatedAt"] = task_doc.pop("updated_at")
+        task_doc["referenceLinks"] = task_doc.pop("reference_links")
         
         task_doc["subtasks"] = [
             {"title": st.title, "completed": st.completed, "createdAt": st.created_at}

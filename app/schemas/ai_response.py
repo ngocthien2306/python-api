@@ -17,6 +17,7 @@ class TaskData(BaseModel):
     tags: List[str] = []
     subtasks: List[str] = []
     reminders: List[Dict[str, Any]] = []
+    referenceLinks: List[Dict[str, str]] = []  # New field for reference links
 
 class TaskAction(BaseModel):
     action: str

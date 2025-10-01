@@ -101,6 +101,10 @@ class TaskRepository(BaseRepository[Task]):
             if field in task_dict:
                 converted[field] = task_dict[field]
         
+        # Handle reference_links field
+        if "referenceLinks" in task_dict:
+            converted["reference_links"] = task_dict["referenceLinks"]
+        
         # Convert mapped fields
         for db_field, model_field in field_mapping.items():
             if db_field in task_dict:
@@ -115,5 +119,7 @@ class TaskRepository(BaseRepository[Task]):
             converted["tags"] = []
         if "subtasks" not in converted:
             converted["subtasks"] = []
+        if "reference_links" not in converted:
+            converted["reference_links"] = []
             
         return converted

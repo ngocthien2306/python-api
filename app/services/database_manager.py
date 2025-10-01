@@ -142,27 +142,38 @@ class DatabaseManagerService:
     
     def _handle_scheduling(self, parsed_response: AIResponse, user_input: str, user_id: str) -> Dict[str, Any]:
         """Handle scheduling operations by delegating to ScheduleService"""
+        results = {"operations": []}
+        
+        # If there's also a taskAction, handle it first to create regular tasks with reference links
+        if parsed_response.taskAction:
+            task_result = self._handle_simple_task(parsed_response, user_input, user_id)
+            results["operations"].append({"type": "simple_task", "result": task_result})
+        
+        # Then handle the scheduling part
         scheduling_action = parsed_response.schedulingAction
         if not scheduling_action:
-            return {"type": "none", "message": "No scheduling action provided"}
+            return {"type": "none", "message": "No scheduling action provided", "operations": results.get("operations", [])}
             
         schedule_type = scheduling_action.type
-        results = {"type": schedule_type}
+        results["type"] = schedule_type
         
         if schedule_type == "daily_planning":
-            results.update(self.schedule_service.create_daily_schedule(
+            schedule_result = self.schedule_service.create_daily_schedule(
                 scheduling_action.dict(), user_id
-            ))
+            )
+            results.update(schedule_result)
             
         elif schedule_type == "weekly_planning":
-            results.update(self.schedule_service.create_weekly_schedule(
+            schedule_result = self.schedule_service.create_weekly_schedule(
                 scheduling_action.dict(), user_id
-            ))
+            )
+            results.update(schedule_result)
             
         elif schedule_type == "rescheduling":
-            results.update(self.schedule_service.reschedule_tasks(
+            schedule_result = self.schedule_service.reschedule_tasks(
                 scheduling_action.dict(), user_id
-            ))
+            )
+            results.update(schedule_result)
         
         return results
     

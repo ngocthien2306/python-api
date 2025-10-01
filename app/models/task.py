@@ -25,6 +25,7 @@ class Task(BaseModel):
     creation_context: str = ""
     last_modified_by: str = "ai"
     scheduled_slot: Optional[Dict[str, Any]] = None
+    reference_links: List[Dict[str, str]] = []  # [{title: str, url: str}]
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
@@ -91,17 +92,21 @@ class TaskUpdateRequest(BaseModel):
 
 class TaskResponse(BaseModel):
     id: str
-    user_id: str
+    user_id: str = Field(alias="userId")
     title: str
     description: str
     priority: str
     category: str
     status: str
     tags: List[str]
-    due_date: Optional[datetime]
-    due_time: Optional[str]
-    estimated_duration: int
-    actual_duration: Optional[int]
-    created_at: datetime
-    updated_at: datetime
-    completed_at: Optional[datetime]
+    due_date: Optional[datetime] = Field(alias="dueDate")
+    due_time: Optional[str] = Field(alias="dueTime")
+    estimated_duration: int = Field(alias="estimatedDuration")
+    actual_duration: Optional[int] = Field(alias="actualDuration")
+    reference_links: List[Dict[str, str]] = Field(default=[], alias="referenceLinks")
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+    completed_at: Optional[datetime] = Field(default=None, alias="completedAt")
+    
+    class Config:
+        populate_by_name = True

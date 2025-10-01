@@ -55,6 +55,7 @@ async def get_user_tasks(
                 category=task.category,
                 estimated_duration=task.estimated_duration,
                 actual_duration=task.actual_duration,
+                reference_links=getattr(task, 'reference_links', []),
                 completed_at=task.completed_at
             ) for task in tasks
         ]
@@ -92,6 +93,7 @@ async def get_current_user_tasks(
                 category=task.category,
                 estimated_duration=task.estimated_duration,
                 actual_duration=task.actual_duration,
+                reference_links=getattr(task, 'reference_links', []),
                 completed_at=task.completed_at
             ) for task in tasks
         ]
@@ -176,6 +178,7 @@ async def update_task(
             category=updated_task.category,
             estimated_duration=updated_task.estimated_duration,
             actual_duration=updated_task.actual_duration,
+            reference_links=getattr(updated_task, 'reference_links', []),
             completed_at=updated_task.completed_at
         )
         
@@ -296,6 +299,7 @@ async def mark_task_complete(
             category=updated_task.category,
             estimated_duration=updated_task.estimated_duration,
             actual_duration=updated_task.actual_duration,
+            reference_links=getattr(updated_task, 'reference_links', []),
             completed_at=updated_task.completed_at
         )
         

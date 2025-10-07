@@ -93,7 +93,7 @@ class ReminderNotificationService:
                     socket_enabled = reminder.get('socket', True)  # Default to True if not set
                     
                     # If past trigger time, mark notification as sent and skip
-                    if trigger_time_local > now_user_local:
+                    if now_user_local  > trigger_time_local + timedelta(minutes=before_due_minutes) :
                         self.reminder_repository.mark_notification_as_sent(str(reminder['_id']))
                         logger.info(f"⏰ Notification reminder {reminder['_id']} past trigger time, marked as sent")
                         logger.info(f"   Current time (local): {now_user_local.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -238,7 +238,7 @@ class ReminderNotificationService:
         try:
             # Prepare task data for notification
             task_data = {
-                'id': str(getattr(task, '_id', '')),
+                'id': str(reminder_data['taskId']),
                 'title': getattr(task, 'title', ''),
                 'description': getattr(task, 'description', ''),
                 'priority': getattr(task, 'priority', 'medium'),

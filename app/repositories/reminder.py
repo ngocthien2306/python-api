@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from app.repositories.base import BaseRepository
 from app.models.reminder import Reminder
@@ -57,6 +57,37 @@ class ReminderRepository(BaseRepository[Reminder]):
             ]
         })
     
+    def get_reminder_by_id(self, reminder_id: str) -> Optional[Dict[str, Any]]:
+        """Get a reminder by its ID"""
+        from bson import ObjectId
+        try:
+            reminder = self.get_collection().find_one({"_id": ObjectId(reminder_id)})
+            if reminder:
+                # Convert ObjectId to string for JSON serialization
+                reminder["_id"] = str(reminder["_id"])
+                if "taskId" in reminder:
+                    reminder["taskId"] = str(reminder["taskId"])
+            return reminder
+        except Exception as e:
+            print(f"Error getting reminder by ID {reminder_id}: {e}")
+            return None
+
+    def update_reminder(self, reminder_id: str, update_data: Dict[str, Any]) -> bool:
+        """Update a reminder by its ID"""
+        from bson import ObjectId
+        try:
+            # Add updated timestamp
+            update_data["updated_at"] = local_now()
+            
+            result = self.get_collection().update_one(
+                {"_id": ObjectId(reminder_id)},
+                {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating reminder {reminder_id}: {e}")
+            return False
+
     def delete_by_task_id(self, task_id: str) -> int:
         """Delete all reminders associated with a task"""
         from bson import ObjectId

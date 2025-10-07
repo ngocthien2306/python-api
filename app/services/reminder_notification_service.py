@@ -324,8 +324,33 @@ class ReminderNotificationService:
             return False
 
     async def _send_websocket_notification(self, user_id: str, stored_notification) -> bool:
-        """Send websocket notification to user."""
+        """Send websocket notification to user with detailed toast information."""
         try:
+            # Extract detailed task information for toast display
+            task_info = None
+            reminder_info = None
+            
+            if stored_notification.data and stored_notification.data.task:
+                task = stored_notification.data.task
+                task_info = {
+                    "id": task.id,
+                    "title": task.title,
+                    "priority": task.priority,
+                    "status": task.status,
+                    "due_date": task.due_date,
+                    "due_time": task.due_time,
+                    "category": task.category
+                }
+            
+            if stored_notification.data and stored_notification.data.extra:
+                extra = stored_notification.data.extra
+                reminder_info = {
+                    "before_due": extra.get("before_due", "15m"),
+                    "reminder_message": extra.get("reminder_message", ""),
+                    "reminder_id": extra.get("reminder_id")
+                }
+            
+            # Enhanced notification payload with detailed information
             notification_payload = {
                 "type": "task_notification",
                 "id": stored_notification.id,
@@ -335,7 +360,16 @@ class ReminderNotificationService:
                 "action": stored_notification.action.dict() if stored_notification.action else None,
                 "data": stored_notification.data.dict() if stored_notification.data else None,
                 "created_at": stored_notification.created_at.isoformat(),
-                "stored": True
+                "stored": True,
+                # Enhanced fields for detailed toast display
+                "toast": {
+                    "show_details": True,
+                    "task": task_info,
+                    "reminder": reminder_info,
+                    "timestamp": stored_notification.created_at.isoformat(),
+                    "formatted_time": stored_notification.created_at.strftime('%H:%M'),
+                    "formatted_date": stored_notification.created_at.strftime('%d/%m/%Y')
+                }
             }
             
             async with httpx.AsyncClient() as client:

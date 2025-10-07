@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -195,7 +196,7 @@ async def disable_socket_notifications(
             )
         
         # Check if the reminder belongs to the current user
-        if reminder.get('userId') != str(current_user.id):
+        if reminder.get('userId') != str(current_user.username):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to modify this reminder"
@@ -221,6 +222,7 @@ async def disable_socket_notifications(
     except HTTPException:
         raise
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disable socket notifications: {str(e)}"

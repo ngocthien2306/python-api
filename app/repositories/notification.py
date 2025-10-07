@@ -368,21 +368,27 @@ class NotificationRepository:
     ) -> bool:
         """Record notification delivery attempt"""
         try:
-            update_doc = {
-                "delivery_attempts": {"$inc": 1},
+            # Separate $set and $inc operations
+            set_doc = {
                 "last_delivery_attempt": local_now(),
                 "updated_at": local_now()
             }
             
             if success:
-                update_doc.update({
+                set_doc.update({
                     "sent_at": local_now(),
                     "delivered_via": delivery_method
                 })
             
+            # MongoDB update with separate $set and $inc
+            update_operations = {
+                "$set": set_doc,
+                "$inc": {"delivery_attempts": 1}
+            }
+            
             result = self.collection.update_one(
                 {"_id": ObjectId(notification_id)},
-                {"$set": update_doc if success else {"updated_at": local_now()}, "$inc": {"delivery_attempts": 1}}
+                update_operations
             )
             
             return result.modified_count > 0

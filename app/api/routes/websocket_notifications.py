@@ -174,13 +174,23 @@ async def handle_client_message(websocket: WebSocket, user_id: str, message: dic
 async def send_notification_to_user(user_id: str, notification: dict):
     """API endpoint to send notification to specific user via WebSocket"""
     try:
-        # Add metadata to notification
+        # Add metadata to notification and ensure detailed toast info
         enhanced_notification = {
             "type": "task_notification",
             "timestamp": datetime.now().isoformat(),
             "user_id": user_id,
             **notification
         }
+        
+        # Ensure toast details are always present for frontend display
+        if "toast" not in enhanced_notification:
+            current_time = datetime.now()
+            enhanced_notification["toast"] = {
+                "show_details": True,
+                "timestamp": current_time.isoformat(),
+                "formatted_time": current_time.strftime('%H:%M'),
+                "formatted_date": current_time.strftime('%d/%m/%Y')
+            }
         
         success = await connection_manager.send_to_user(user_id, enhanced_notification)
         
@@ -290,7 +300,7 @@ async def send_task_reminder_websocket(username: str):
         # Save to database
         stored_notification = notification_repo.create_notification(notification_create)
         
-        # Create WebSocket payload
+        # Create WebSocket payload with detailed toast information
         notification = {
             "type": "task_notification",
             "id": stored_notification.id,  # Include database ID
@@ -303,6 +313,7 @@ async def send_task_reminder_websocket(username: str):
                 "status": selected_task.get('status'),
                 "due_date": due_date,  # Use converted due_date
                 "due_time": selected_task.get('dueTime'),
+                "category": selected_task.get('category', 'other')
             },
             "action": {
                 "type": "navigate",
@@ -310,7 +321,28 @@ async def send_task_reminder_websocket(username: str):
             },
             "notification_type": "task_reminder",
             "timestamp": stored_notification.created_at.isoformat(),
-            "stored": True  # Indicate this is stored in database
+            "stored": True,  # Indicate this is stored in database
+            # Enhanced fields for detailed toast display
+            "toast": {
+                "show_details": True,
+                "task": {
+                    "id": selected_task.get('id'),
+                    "title": selected_task['title'],
+                    "priority": selected_task.get('priority', 'medium'),
+                    "status": selected_task.get('status'),
+                    "due_date": due_date,
+                    "due_time": selected_task.get('dueTime'),
+                    "category": selected_task.get('category', 'other')
+                },
+                "reminder": {
+                    "before_due": "15m",  # Default for manual reminders
+                    "reminder_message": stored_notification.body,
+                    "reminder_id": None  # Manual reminder, no specific reminder ID
+                },
+                "timestamp": stored_notification.created_at.isoformat(),
+                "formatted_time": stored_notification.created_at.strftime('%H:%M'),
+                "formatted_date": stored_notification.created_at.strftime('%d/%m/%Y')
+            }
         }
         
         # Send via WebSocket

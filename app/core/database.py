@@ -43,6 +43,19 @@ def init_database():
     db.database.users.create_index([("email", 1)], unique=True)
     db.database.users.create_index([("created_at", 1)])
     db.database.users.create_index([("is_active", 1)])
+    
+    # Create indexes for subscription collections
+    db.database.subscriptions.create_index([("user_id", 1)], unique=True)
+    db.database.subscriptions.create_index([("user_id", 1), ("status", 1)])
+    db.database.subscriptions.create_index([("plan_type", 1)])
+    db.database.subscriptions.create_index([("end_date", 1)])
+    db.database.subscriptions.create_index([("created_at", 1)])
+    
+    # Create indexes for usage logs
+    db.database.usage_logs.create_index([("user_id", 1), ("timestamp", -1)])
+    db.database.usage_logs.create_index([("user_id", 1), ("request_type", 1)])
+    db.database.usage_logs.create_index([("timestamp", -1)])
+    db.database.usage_logs.create_index([("session_id", 1)])
 
 def close_database():
     if db.client:

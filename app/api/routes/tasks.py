@@ -38,8 +38,8 @@ async def get_user_tasks(
         
         # Get tasks for the user
         tasks = task_repo.get_tasks_by_user_id(str(user_id))
-        
-        return [
+
+        tasks_res = [
             TaskResponse(
                 id=str(task.id),
                 title=task.title,
@@ -59,6 +59,8 @@ async def get_user_tasks(
                 completed_at=task.completed_at
             ) for task in tasks
         ]
+        
+        return tasks_res
         
     except HTTPException:
         raise
@@ -148,20 +150,16 @@ async def update_task(
                 detail="Failed to retrieve updated task"
             )
         
-        # Update reminders if due_date or due_time changed
+        # Reset reminder status if due_date or due_time changed
         if task_update_request.dueDate is not None or task_update_request.dueTime is not None:
             try:
-                reminder_service = ReminderUpdateService()
-                await reminder_service.update_reminders_for_task(
-                    task_id, 
-                    {
-                        'due_date': updated_task.due_date,
-                        'due_time': updated_task.due_time
-                    }
-                )
+                db = get_database()
+                reminder_repo = ReminderRepository(db)
+                reset_count = reminder_repo.reset_reminder_status_for_task(task_id)
+                print(f"🔄 Reset {reset_count} reminder(s) status for task {task_id} due to time change")
             except Exception as e:
                 # Log error but don't fail the task update
-                print(f"Warning: Failed to update reminders for task {task_id}: {str(e)}")
+                print(f"Warning: Failed to reset reminder status for task {task_id}: {str(e)}")
         
         return TaskResponse(
             id=str(updated_task.id),

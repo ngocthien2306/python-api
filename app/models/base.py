@@ -2,12 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 from bson import ObjectId
 from datetime import datetime
+from app.utils.timezone_helper import utc_now
 
 class BaseModel(ABC):
     def __init__(self):
         self._id: ObjectId = None
-        self.created_at: datetime = datetime.now()
-        self.updated_at: datetime = datetime.now()
+        self.created_at: datetime = utc_now()
+        self.updated_at: datetime = utc_now()
     
     def to_dict(self) -> Dict[str, Any]:
         result = self.__dict__.copy()

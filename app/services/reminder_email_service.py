@@ -1,7 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict, Any
 import asyncio
 import logging
+import httpx
+from zoneinfo import ZoneInfo
+from app.utils.timezone_helper import to_user_timezone
 from app.services.email_service import EmailService
 from app.repositories.user import UserRepository
 from app.repositories.task import TaskRepository
@@ -28,64 +31,56 @@ class ReminderEmailService:
             logger.info("Starting to process due reminders")
             
             # Get all pending reminders and check if they should be sent
-            now = datetime.utcnow()
+            now_utc = datetime.now(ZoneInfo('UTC'))
             
-            logger.info(f"🔍 Current UTC time: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            logger.info(f"🔍 Current UTC time: {now_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC")
             
-            # Get all pending reminders
-            all_pending_reminders = self.reminder_repository.find({"status": "pending"})
-            logger.info(f"🔍 Total pending reminders found: {len(all_pending_reminders)}")
+            # Get all pending reminders for email (won't conflict with notification service)
+            all_pending_reminders = self.reminder_repository.get_pending_for_email()
+            logger.info(f"🔍 Total pending reminders to check: {len(all_pending_reminders)}")
             
             due_reminders = []
             
             for reminder in all_pending_reminders:
                 try:
-                    # Get task info to calculate actual due time
+                    # Get user info to get timezone
+                    user = self.user_repository.get_user_by_username(reminder['userId'])
+                    if not user:
+                        logger.warning(f"⚠️ User {reminder['userId']} not found for reminder {reminder['_id']}")
+                        continue
+                    
+                    # Get user timezone
+                    user_timezone = user.personality.timezone or 'Asia/Ho_Chi_Minh'
+                    
+                    # Get current time in user's timezone
+                    now_user_local = to_user_timezone(now_utc, user_timezone)
+                    
+                    # Get task info for logging and validation
                     task = self.task_repository.get_task_by_id(str(reminder['taskId']))
                     if not task:
                         logger.warning(f"⚠️ Task {reminder['taskId']} not found for reminder {reminder['_id']}")
                         continue
                     
-                    # Calculate task due datetime
-                    task_due_date = task.due_date
-                    task_due_time = task.due_time
-                    
-                    if not task_due_date:
-                        logger.warning(f"⚠️ Task {reminder['taskId']} has no due_date")
+                    # Get trigger time and convert to user's local timezone
+                    trigger_time = reminder.get('triggerTime')
+                    if not trigger_time:
+                        logger.warning(f"⚠️ Reminder {reminder['_id']} has no triggerTime")
                         continue
                     
-                    # Convert to datetime if string
-                    if isinstance(task_due_date, str):
-                        task_due_date = datetime.fromisoformat(task_due_date.replace('Z', '+00:00'))
+                    if isinstance(trigger_time, str):
+                        trigger_time = datetime.fromisoformat(trigger_time.replace('Z', '+00:00'))
                     
-                    # Combine date and time
-                    if task_due_time:
-                        try:
-                            if 'AM' in task_due_time.upper() or 'PM' in task_due_time.upper():
-                                task_due_datetime = datetime.strptime(f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}", "%Y-%m-%d %I:%M %p")
-                            else:
-                                task_due_datetime = datetime.strptime(f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}", "%Y-%m-%d %H:%M")
-                        except ValueError:
-                            task_due_datetime = task_due_date.replace(hour=23, minute=59)
-                    else:
-                        task_due_datetime = task_due_date.replace(hour=23, minute=59)
+                    # Convert trigger time to user's local timezone
+                    trigger_time_local = to_user_timezone(trigger_time, user_timezone)
                     
-                    # Parse beforeDue to minutes
-                    before_due = reminder.get('beforeDue', '15m')
-                    minutes_before = self._parse_before_due_to_minutes(before_due)
-                    
-                    # Calculate reminder time range
-                    reminder_start_time = task_due_datetime - timedelta(minutes=minutes_before)
-                    reminder_end_time = task_due_datetime
-                    
-                    # Check if current time is in the reminder window
-                    if reminder_start_time <= now <= reminder_end_time:
+                    # Check if it's time to send reminder (current local time >= trigger local time)
+                    if now_user_local >= trigger_time_local:
                         due_reminders.append(reminder)
                         logger.info(f"📧 Reminder {reminder['_id']} is due now!")
-                        logger.info(f"   Task: {task.get('title', 'Unknown')}")
-                        logger.info(f"   Task due: {task_due_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-                        logger.info(f"   Reminder window: {reminder_start_time.strftime('%Y-%m-%d %H:%M:%S')} to {reminder_end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                        logger.info(f"   BeforeDue: {before_due} ({minutes_before} minutes)")
+                        logger.info(f"   User timezone: {user_timezone}")
+                        logger.info(f"   Task: {getattr(task, 'title', 'Unknown')}")
+                        logger.info(f"   Current time (local): {now_user_local.strftime('%Y-%m-%d %H:%M:%S')}")
+                        logger.info(f"   Trigger time (local): {trigger_time_local.strftime('%Y-%m-%d %H:%M:%S')}")
                     
                 except Exception as e:
                     
@@ -108,15 +103,15 @@ class ReminderEmailService:
             
             for reminder_data in due_reminders:
                 try:
-                    success = await self.send_reminder_email(reminder_data)
-                    
+                    # success = await self.send_reminder_email(reminder_data)
+                    success = False
                     # Get task info for logging
                     task = self.task_repository.get_task_by_id(str(reminder_data['taskId']))
-                    task_title = task['title'] if task else 'Unknown Task'
+                    task_title = getattr(task, 'title', 'Unknown Task') if task else 'Unknown Task'
                     
                     if success:
-                        # Mark reminder as sent
-                        self.reminder_repository.mark_as_sent(str(reminder_data['_id']))
+                        # Mark email as sent (doesn't affect notification status)
+                        self.reminder_repository.mark_email_as_sent(str(reminder_data['_id']))
                         successful_sends += 1
                         
                         # Store for detailed logging
@@ -168,7 +163,7 @@ class ReminderEmailService:
         """Send email for a specific reminder."""
         try:
             # Get user info
-            user = self.user_repository.get_user_by_id(reminder_data['userId'])
+            user = self.user_repository.get_user_by_username(reminder_data['userId'])
             if not user or not user.is_verified or not user.is_active:
                 logger.warning(f"User {reminder_data['userId']} not found, not verified, or not active")
                 return False
@@ -184,14 +179,14 @@ class ReminderEmailService:
             
             # Prepare task data for email
             task_data = {
-                'id': str(task['_id']),
-                'title': task['title'],
-                'description': task.get('description', ''),
-                'priority': task.get('priority', 'medium'),
-                'category': task.get('category', 'other'),
-                'due_date': task.get('due_date'),
-                'due_time': task.get('due_time'),
-                'estimated_duration': task.get('estimated_duration', 60)
+                'id': str(getattr(task, '_id', '')),
+                'title': getattr(task, 'title', ''),
+                'description': getattr(task, 'description', ''),
+                'priority': getattr(task, 'priority', 'medium'),
+                'category': getattr(task, 'category', 'other'),
+                'due_date': getattr(task, 'due_date', None),
+                'due_time': getattr(task, 'due_time', None),
+                'estimated_duration': getattr(task, 'estimated_duration', 60)
             }
             
             # Format due date
@@ -237,11 +232,11 @@ class ReminderEmailService:
                     task = self.task_repository.get_task_by_id(str(reminder['taskId']))
                     if task:
                         reminder['task'] = {
-                            'title': task['title'],
-                            'description': task.get('description', ''),
-                            'priority': task.get('priority', 'medium'),
-                            'due_date': task.get('due_date'),
-                            'due_time': task.get('due_time')
+                            'title': getattr(task, 'title', ''),
+                            'description': getattr(task, 'description', ''),
+                            'priority': getattr(task, 'priority', 'medium'),
+                            'due_date': getattr(task, 'due_date', None),
+                            'due_time': getattr(task, 'due_time', None)
                         }
                     enriched_reminders.append(reminder)
                 except Exception as e:
@@ -279,7 +274,7 @@ class ReminderEmailService:
             sample_reminder = {
                 'reminder_message': 'Reminder: Complete Project Presentation due in 15m',
                 'before_due': '15m',
-                'trigger_time': datetime.utcnow(),
+                'trigger_time': datetime.now(ZoneInfo('UTC')),
                 'reminder_type': 'time'
             }
             
@@ -294,6 +289,45 @@ class ReminderEmailService:
             
         except Exception as e:
             logger.error(f"Error sending test reminder email: {str(e)}")
+            return False
+
+    def _get_user_timezone(self, user) -> ZoneInfo:
+        """Get user timezone with fallback to Asia/Ho_Chi_Minh."""
+        try:
+            user_timezone_str = user.personality.timezone or 'Asia/Ho_Chi_Minh'
+            return ZoneInfo(user_timezone_str)
+        except Exception:
+            logger.warning(f"⚠️ Invalid timezone {user.personality.timezone} for user {user.username}, using Asia/Ho_Chi_Minh")
+            return ZoneInfo('Asia/Ho_Chi_Minh')
+
+    async def _send_websocket_notification(self, user_id: str, task_data: dict, reminder_data: dict) -> bool:
+        """Send websocket notification to user."""
+        try:
+            notification = {
+                "type": "task_reminder",
+                "title": "Task Reminder",
+                "message": f"Reminder: {task_data['title']} is due soon",
+                "task": task_data,
+                "reminder": reminder_data,
+                "priority": "medium"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"http://localhost:8000/api/v1/send-notification/{user_id}",
+                    json=notification,
+                    timeout=5.0
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ WebSocket notification sent to user {user_id}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ WebSocket notification failed for user {user_id}: {response.status_code}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"💥 Error sending WebSocket notification to user {user_id}: {str(e)}")
             return False
 
     def _parse_before_due_to_minutes(self, before_due: str) -> int:

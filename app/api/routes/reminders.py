@@ -6,6 +6,9 @@ from app.repositories.user import UserRepository
 from app.api.routes.auth import get_user_repository
 from app.services.reminder_email_service import ReminderEmailService
 from app.services.reminder_update_service import ReminderUpdateService
+from app.services.reminder_notification_service import ReminderNotificationService
+from app.repositories.reminder import ReminderRepository
+from app.core.database import get_database
 
 router = APIRouter()
 
@@ -108,6 +111,44 @@ async def process_due_reminders(
             detail=f"Failed to process reminders: {str(e)}"
         )
 
+@router.post("/reminders/process-notifications", response_model=Dict[str, Any])
+async def process_due_notification_reminders(
+    current_user = Depends(get_current_user)
+):
+    """Manually trigger processing of due notification reminders."""
+    try:
+        reminder_service = ReminderNotificationService()
+        result = await reminder_service.process_due_reminders()
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process notification reminders: {str(e)}"
+        )
+
+@router.get("/reminders/upcoming-notifications", response_model=List[Dict[str, Any]])
+async def get_upcoming_notification_reminders(
+    hours_ahead: int = 24,
+    current_user = Depends(get_current_user)
+):
+    """Get upcoming notification reminders for the current user."""
+    try:
+        reminder_service = ReminderNotificationService()
+        reminders = await reminder_service.get_upcoming_notification_reminders(
+            user_id=str(current_user.id),
+            hours_ahead=hours_ahead
+        )
+        
+        return reminders
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get upcoming notification reminders: {str(e)}"
+        )
+
 @router.post("/reminders/test/{user_id}", response_model=Dict[str, Any])
 async def send_test_reminder(
     user_id: str,
@@ -133,4 +174,54 @@ async def send_test_reminder(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send test reminder: {str(e)}"
+        )
+
+@router.patch("/reminders/{reminder_id}/disable-socket", response_model=Dict[str, Any])
+async def disable_socket_notifications(
+    reminder_id: str,
+    current_user = Depends(get_current_user)
+):
+    """Disable socket notifications for a specific reminder."""
+    try:
+        db = get_database()
+        reminder_repo = ReminderRepository(db)
+        
+        # Get the reminder to verify ownership
+        reminder = reminder_repo.get_reminder_by_id(reminder_id)
+        if not reminder:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reminder not found"
+            )
+        
+        # Check if the reminder belongs to the current user
+        if reminder.get('userId') != str(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to modify this reminder"
+            )
+        
+        # Update the reminder to disable socket notifications and mark as sent
+        success = reminder_repo.update_reminder(reminder_id, {"socket": False})
+        if success:
+            # Also mark notification as sent to prevent future processing
+            reminder_repo.mark_notification_as_sent(reminder_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Socket notifications disabled for this reminder"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to update reminder"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to disable socket notifications: {str(e)}"
         )

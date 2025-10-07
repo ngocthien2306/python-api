@@ -4,7 +4,9 @@ import logging
 import os
 from app.repositories.reminder import ReminderRepository
 from app.repositories.task import TaskRepository
+from app.repositories.user import UserRepository
 from app.core.database import get_database
+from app.utils.timezone_helper import utc_now, from_user_timezone, to_utc
 from bson import ObjectId
 
 # Setup file logging for reminder updates
@@ -47,6 +49,7 @@ class ReminderUpdateService:
         self.db = get_database()
         self.reminder_repository = ReminderRepository(self.db)
         self.task_repository = TaskRepository(self.db)
+        self.user_repository = UserRepository(self.db)
     
     def parse_before_due_to_minutes(self, before_due: str) -> int:
         """Parse beforeDue string to minutes.
@@ -86,42 +89,53 @@ class ReminderUpdateService:
             logger.error(f"Error parsing before_due '{before_due}': {str(e)}")
             return 15  # Default to 15 minutes
     
-    def calculate_trigger_time(self, task_due_date: datetime, task_due_time: str, before_due: str) -> datetime:
+    def calculate_trigger_time(self, task_due_date: datetime, task_due_time: str, before_due: str, user_timezone: str = None) -> datetime:
         """Calculate trigger time for reminder based on task due date/time and beforeDue."""
         try:
+            # Default timezone if not provided
+            user_tz = user_timezone or 'UTC'
+            
             # Combine due date and time
             if task_due_time:
                 # Parse time string (e.g., "14:30" or "2:30 PM")
                 try:
                     if 'AM' in task_due_time.upper() or 'PM' in task_due_time.upper():
-                        due_datetime = datetime.strptime(f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}", "%Y-%m-%d %I:%M %p")
+                        due_datetime_str = f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}"
+                        due_datetime_naive = datetime.strptime(due_datetime_str, "%Y-%m-%d %I:%M %p")
                     else:
-                        due_datetime = datetime.strptime(f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}", "%Y-%m-%d %H:%M")
+                        due_datetime_str = f"{task_due_date.strftime('%Y-%m-%d')} {task_due_time}"
+                        due_datetime_naive = datetime.strptime(due_datetime_str, "%Y-%m-%d %H:%M")
                 except ValueError:
                     # If time parsing fails, use end of day
-                    due_datetime = task_due_date.replace(hour=23, minute=59, second=59)
+                    due_datetime_naive = task_due_date.replace(hour=23, minute=59, second=59)
             else:
                 # If no time specified, assume end of day
-                due_datetime = task_due_date.replace(hour=23, minute=59, second=59)
+                due_datetime_naive = task_due_date.replace(hour=23, minute=59, second=59)
+            
+            # Convert due datetime from user timezone to UTC
+            due_datetime_utc = from_user_timezone(due_datetime_naive.strftime('%Y-%m-%d %H:%M:%S'), user_tz)
+            if not due_datetime_utc:
+                # Fallback: assume naive datetime is already UTC
+                due_datetime_utc = to_utc(due_datetime_naive)
             
             # Calculate minutes before due
             minutes_before = self.parse_before_due_to_minutes(before_due)
             
-            # Calculate trigger time
-            trigger_time = due_datetime - timedelta(minutes=minutes_before)
+            # Calculate trigger time in UTC
+            trigger_time_utc = due_datetime_utc - timedelta(minutes=minutes_before)
             
             # Ensure trigger time is not in the past
-            now = datetime.utcnow()
-            if trigger_time <= now:
+            now_utc = utc_now()
+            if trigger_time_utc <= now_utc:
                 # If calculated time is in the past, set it to 1 minute from now
-                trigger_time = now + timedelta(minutes=1)
+                trigger_time_utc = now_utc + timedelta(minutes=1)
             
-            return trigger_time
+            return trigger_time_utc
             
         except Exception as e:
             logger.error(f"Error calculating trigger time: {str(e)}")
             # Fallback: 15 minutes from now
-            return datetime.utcnow() + timedelta(minutes=15)
+            return utc_now() + timedelta(minutes=15)
     
     async def update_reminders_for_task(self, task_id: str, updated_task_data: Dict[str, Any]) -> bool:
         """Update all reminders for a task when task due date/time changes."""
@@ -164,11 +178,16 @@ class ReminderUpdateService:
             
             for reminder in reminders:
                 try:
+                    # Get user timezone for this reminder
+                    user = self.user_repository.get_user_by_username(reminder['userId'])
+                    user_timezone = user.personality.timezone if user else 'UTC'
+                    
                     # Calculate new trigger time
                     new_trigger_time = self.calculate_trigger_time(
                         task_due_date, 
                         task_due_time, 
-                        reminder.get('beforeDue', '15m')
+                        reminder.get('beforeDue', '15m'),
+                        user_timezone
                     )
                     
                     # Update reminder
@@ -176,7 +195,7 @@ class ReminderUpdateService:
                         str(reminder['_id']), 
                         {
                             "triggerTime": new_trigger_time,
-                            "updatedAt": datetime.utcnow()
+                            "updatedAt": utc_now()
                         }
                     )
                     
@@ -218,9 +237,13 @@ class ReminderUpdateService:
             if isinstance(task_due_date, str):
                 task_due_date = datetime.fromisoformat(task_due_date.replace('Z', '+00:00'))
             
+            # Get user timezone for trigger time calculation
+            user = self.user_repository.get_user_by_username(user_id)
+            user_timezone = user.personality.timezone if user else 'UTC'
+            
             # Calculate trigger time
             before_due = reminder_data.get('beforeDue', '15m')
-            trigger_time = self.calculate_trigger_time(task_due_date, task_due_time, before_due)
+            trigger_time = self.calculate_trigger_time(task_due_date, task_due_time, before_due, user_timezone)
             
             # Create reminder document
             reminder_doc = {
@@ -236,8 +259,8 @@ class ReminderUpdateService:
                 "scheduleType": reminder_data.get('scheduleType', ''),
                 "slotIndex": reminder_data.get('slotIndex', 0),
                 "ruleIndex": reminder_data.get('ruleIndex', 0),
-                "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow()
+                "createdAt": utc_now(),
+                "updatedAt": utc_now()
             }
             
             # Insert reminder

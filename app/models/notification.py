@@ -64,6 +64,8 @@ class NotificationCreate(NotificationBase):
     user_id: str = Field(..., description="User ID to send notification to")
     scheduled_for: Optional[datetime] = Field(None, description="Schedule notification for future")
     expires_at: Optional[datetime] = Field(None, description="Notification expiration")
+    created_at: Optional[datetime] = Field(None, description="Custom creation timestamp (in user timezone)")
+    updated_at: Optional[datetime] = Field(None, description="Custom update timestamp (in user timezone)")
 
 class NotificationUpdate(BaseModel):
     """Model for updating notifications"""

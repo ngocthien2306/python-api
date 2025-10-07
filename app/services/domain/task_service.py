@@ -1,7 +1,9 @@
 from typing import Dict, Any, List
 from datetime import datetime
 from app.repositories.task import TaskRepository
+from app.repositories.reminder import ReminderRepository
 from app.models.task import Task, Subtask
+from app.core.database import get_database
 
 
 class TaskService:
@@ -9,6 +11,7 @@ class TaskService:
     
     def __init__(self, task_repo: TaskRepository):
         self.task_repo = task_repo
+        self.reminder_repo = ReminderRepository(get_database())
     
     def create_task(self, task_data: Dict[str, Any], user_input: str, user_id: str) -> Dict[str, Any]:
         """Create a new task"""
@@ -90,6 +93,9 @@ class TaskService:
             return {"success": False, "error": "Task ID required for update"}
         
         try:
+            # Check if due date/time is being updated (to reset reminder status)
+            due_time_changed = False
+            
             # Prepare update data
             update_data = {"updatedAt": datetime.now(), "lastModifiedBy": "ai"}
             
@@ -97,21 +103,33 @@ class TaskService:
                 if key == "dueDate" and value:
                     try:
                         update_data["dueDate"] = datetime.strptime(value, "%Y-%m-%d")
+                        due_time_changed = True
                     except ValueError:
                         continue
-                elif key in ["title", "description", "priority", "category", "status", "dueTime"]:
+                elif key == "dueTime":
+                    update_data[key] = value
+                    due_time_changed = True
+                elif key in ["title", "description", "priority", "category", "status"]:
                     update_data[key] = value
                 elif key == "tags" and isinstance(value, list):
                     update_data["tags"] = value
                 elif key == "referenceLinks" and isinstance(value, list):
                     update_data["referenceLinks"] = value
             
+            # Update the task
             result = self.task_repo.update(task_id, update_data)
+            
+            # If due date/time changed, reset reminder status to allow reminders to be sent again
+            reset_count = 0
+            if due_time_changed and result:
+                reset_count = self.reminder_repo.reset_reminder_status_for_task(task_id)
+                print(f"🔄 Reset {reset_count} reminder(s) status for task {task_id} due to time change")
             
             return {
                 "success": True,
                 "task_id": task_id,
-                "updated_fields": list(update_data.keys())
+                "updated_fields": list(update_data.keys()),
+                "reminders_reset": reset_count
             }
             
         except Exception as e:

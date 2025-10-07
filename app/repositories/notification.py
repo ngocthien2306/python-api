@@ -51,6 +51,9 @@ class NotificationRepository:
             # Index for scheduled notifications
             self.collection.create_index([("scheduled_for", 1)], sparse=True)
             
+            # Index for reminder ID lookup
+            self.collection.create_index([("metadata.reminder_id", 1)], sparse=True)
+            
             logger.info("Notification indexes created successfully")
         except Exception as e:
             logger.error(f"Failed to create notification indexes: {e}")
@@ -70,8 +73,8 @@ class NotificationRepository:
                 "action": notification_data.action.dict() if notification_data.action else None,
                 "data": notification_data.data.dict() if notification_data.data else None,
                 "metadata": notification_data.metadata or {},
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": getattr(notification_data, 'created_at', datetime.utcnow()),
+                "updated_at": getattr(notification_data, 'updated_at', datetime.utcnow()),
                 "scheduled_for": notification_data.scheduled_for,
                 "expires_at": notification_data.expires_at,
                 "delivery_attempts": 0,
@@ -402,3 +405,19 @@ class NotificationRepository:
         except Exception as e:
             logger.error(f"Failed to cleanup expired notifications: {e}")
             return 0
+
+    def find_by_reminder_id(self, reminder_id: str) -> Optional[StoredNotification]:
+        """Find notification by reminder ID"""
+        try:
+            doc = self.collection.find_one({
+                "metadata.reminder_id": reminder_id
+            })
+            
+            if doc:
+                doc["id"] = str(doc["_id"])
+                return StoredNotification(**doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to find notification by reminder ID {reminder_id}: {e}")
+            return None

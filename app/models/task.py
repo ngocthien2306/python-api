@@ -2,12 +2,12 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from bson import ObjectId
-from app.utils.timezone_helper import utc_now
+from app.utils.timezone_helper import local_now
 
 class Subtask(BaseModel):
     title: str
     completed: bool = False
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=local_now)
 
 class Task(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
@@ -27,8 +27,8 @@ class Task(BaseModel):
     last_modified_by: str = "ai"
     scheduled_slot: Optional[Dict[str, Any]] = None
     reference_links: List[Dict[str, str]] = []  # [{title: str, url: str}]
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=local_now)
+    updated_at: datetime = Field(default_factory=local_now)
     completed_at: Optional[datetime] = None
     
     class Config:

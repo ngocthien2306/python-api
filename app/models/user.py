@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from bson import ObjectId
+from app.utils.timezone_helper import local_now
 
 class UserPersonality(BaseModel):
     communication_style: Optional[str] = "friendly"  # friendly, formal, casual, professional
@@ -59,8 +60,8 @@ class User(BaseModel):
     is_verified: bool = False
     profile: UserProfile = UserProfile()
     personality: UserPersonality = UserPersonality()
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=local_now)
+    updated_at: datetime = Field(default_factory=local_now)
     last_login: Optional[datetime] = None
     push_subscriptions: List[Dict[str, Any]] = []
     

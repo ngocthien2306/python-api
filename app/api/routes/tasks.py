@@ -1,8 +1,10 @@
 import traceback
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.api.routes.auth import get_current_user
+from app.utils.timezone_helper import local_now
 from app.repositories.user import UserRepository
 from app.repositories.task import TaskRepository
 from app.api.routes.auth import get_user_repository
@@ -150,14 +152,26 @@ async def update_task(
                 detail="Failed to retrieve updated task"
             )
         
-        # Reset reminder status if due_date or due_time changed
+        # Reset reminder status and update triggerTime if due_date or due_time changed
         if task_update_request.dueDate is not None or task_update_request.dueTime is not None:
             try:
                 db = get_database()
                 reminder_repo = ReminderRepository(db)
-                reset_count = reminder_repo.reset_reminder_status_for_task(task_id)
-                print(f"🔄 Reset {reset_count} reminder(s) status for task {task_id} due to time change")
+                
+                # Get the new due date and time values
+                new_due_date = task_update_request.dueDate  # Already a datetime object
+                
+                new_due_time = task_update_request.dueTime
+                
+                # Reset reminder status and update triggerTime
+                reset_count = reminder_repo.reset_reminder_status_for_task(
+                    task_id, 
+                    new_due_date=new_due_date,
+                    new_due_time=new_due_time
+                )
+                print(f"🔄 Reset {reset_count} reminder(s) and updated triggerTime for task {task_id}")
             except Exception as e:
+                traceback.print_exc()
                 # Log error but don't fail the task update
                 print(f"Warning: Failed to reset reminder status for task {task_id}: {str(e)}")
         
@@ -259,11 +273,10 @@ async def mark_task_complete(
         
         # Create TaskUpdate for completion
         from app.models.task import TaskUpdate
-        from datetime import datetime
         
         task_update = TaskUpdate(
             status="completed",
-            completed_at=datetime.now()
+            completed_at=local_now()
         )
         
         # Update the task

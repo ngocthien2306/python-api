@@ -4,6 +4,7 @@ from app.repositories.task import TaskRepository
 from app.repositories.reminder import ReminderRepository
 from app.models.task import Task, Subtask
 from app.core.database import get_database
+from app.utils.timezone_helper import local_now
 
 
 class TaskService:
@@ -97,7 +98,7 @@ class TaskService:
             due_time_changed = False
             
             # Prepare update data
-            update_data = {"updatedAt": datetime.now(), "lastModifiedBy": "ai"}
+            update_data = {"updatedAt": local_now(), "lastModifiedBy": "ai"}
             
             for key, value in updates.items():
                 if key == "dueDate" and value:
@@ -119,11 +120,19 @@ class TaskService:
             # Update the task
             result = self.task_repo.update(task_id, update_data)
             
-            # If due date/time changed, reset reminder status to allow reminders to be sent again
+            # If due date/time changed, reset reminder status and update trigger times
             reset_count = 0
             if due_time_changed and result:
-                reset_count = self.reminder_repo.reset_reminder_status_for_task(task_id)
-                print(f"🔄 Reset {reset_count} reminder(s) status for task {task_id} due to time change")
+                # Get the updated due date and time values
+                new_due_date = update_data.get("dueDate")
+                new_due_time = update_data.get("dueTime")
+                
+                reset_count = self.reminder_repo.reset_reminder_status_for_task(
+                    task_id, 
+                    new_due_date=new_due_date, 
+                    new_due_time=new_due_time
+                )
+                print(f"🔄 Reset {reset_count} reminder(s) and updated triggerTime for task {task_id}")
             
             return {
                 "success": True,

@@ -14,6 +14,7 @@ from app.services.ai_processor import AIProcessorService
 from typing import Dict, Any
 import json
 from datetime import datetime
+from app.utils.timezone_helper import local_now
 
 router = APIRouter()
 
@@ -192,8 +193,8 @@ async def save_chatgpt_response(
             parsed_response=ai_response,
             user_input="ChatGPT Integration",
             user_id=current_user.id,
-            session_id=request.conversation_id or f"chatgpt_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
-            timestamp=datetime.utcnow().isoformat(),
+            session_id=request.conversation_id or f"chatgpt_{local_now().strftime('%Y%m%d_%H%M%S')}",
+            timestamp=local_now().isoformat(),
             source="chatgpt"
         )
         

@@ -3,8 +3,7 @@ from typing import List, Dict, Any
 import asyncio
 import logging
 import httpx
-from zoneinfo import ZoneInfo
-from app.utils.timezone_helper import to_user_timezone, utc_now
+from app.utils.timezone_helper import local_now
 from app.repositories.user import UserRepository
 from app.repositories.task import TaskRepository
 from app.repositories.reminder import ReminderRepository
@@ -39,9 +38,9 @@ class ReminderNotificationService:
             logger.info("Starting to process due notification reminders")
             
             # Get all pending notification reminders and check if they should be sent
-            now_utc = datetime.now(ZoneInfo('UTC'))
+            now_local = local_now()
             
-            logger.info(f"🔍 Current UTC time: {now_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            logger.info(f"🔍 Current local time: {now_local.strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Get all pending reminders for notification (won't conflict with email service)
             all_pending_reminders = self.reminder_repository.get_pending_for_notification()
@@ -57,11 +56,8 @@ class ReminderNotificationService:
                         logger.warning(f"⚠️ User {reminder['userId']} not found for reminder {reminder['_id']}")
                         continue
                     
-                    # Get user timezone
-                    user_timezone = user.personality.timezone or 'Asia/Ho_Chi_Minh'
-                    
-                    # Get current time in user's timezone
-                    now_user_local = to_user_timezone(now_utc, user_timezone)
+                    # Use local server time
+                    now_user_local = now_local
                     
                     # Get task info for logging and validation
                     task = self.task_repository.get_task_by_id(str(reminder['taskId']))
@@ -78,8 +74,11 @@ class ReminderNotificationService:
                     if isinstance(trigger_time, str):
                         trigger_time = datetime.fromisoformat(trigger_time.replace('Z', '+00:00'))
                     
-                    # Convert trigger time to user's local timezone
-                    trigger_time_local = to_user_timezone(trigger_time, user_timezone)
+                    # Use trigger time as local time
+                    if trigger_time.tzinfo is not None:
+                        trigger_time_local = trigger_time.replace(tzinfo=None)
+                    else:
+                        trigger_time_local = trigger_time
                     
                     # Check if we're in the notification window (beforeDue period)
                     # Parse beforeDue to get the start time for notifications
@@ -104,7 +103,7 @@ class ReminderNotificationService:
                     if (notification_start_time <= trigger_time_local <= now_user_local and socket_enabled):
                         due_reminders.append(reminder)
                         logger.info(f"📱 Notification reminder {reminder['_id']} is due now!")
-                        logger.info(f"   User timezone: {user_timezone}")
+                        logger.info(f"   Using local server time")
                         logger.info(f"   Task: {getattr(task, 'title', 'Unknown')}")
                         logger.info(f"   Current time (local): {now_user_local.strftime('%Y-%m-%d %H:%M:%S')}")
                         logger.info(f"   Trigger time (local): {trigger_time_local.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -293,9 +292,8 @@ class ReminderNotificationService:
             # Get user timezone for timestamps
             user_timezone = user.personality.timezone or 'Asia/Ho_Chi_Minh'
             
-            # Create timestamps in user timezone
-            now_utc = utc_now()
-            now_user_local = to_user_timezone(now_utc, user_timezone)
+            # Create timestamps in local time
+            now_user_local = local_now()
             
             # Create notification in database with user local timestamps
             notification_create = NotificationCreate(
@@ -311,8 +309,7 @@ class ReminderNotificationService:
                 metadata={
                     "source": "reminder_notification_service",
                     "reminder_id": str(reminder_data['_id']),
-                    "trigger_time": reminder_data.get('triggerTime'),
-                    "user_timezone": user_timezone
+                    "trigger_time": reminder_data.get('triggerTime')
                 }
             )
             
@@ -369,8 +366,8 @@ class ReminderNotificationService:
             
             # Filter by time range and enrich with task information
             enriched_reminders = []
-            now_utc = datetime.now(ZoneInfo('UTC'))
-            cutoff_time = now_utc + datetime.timedelta(hours=hours_ahead)
+            now_local = local_now()
+            cutoff_time = now_local + timedelta(hours=hours_ahead)
             
             for reminder in upcoming_reminders:
                 try:
@@ -378,17 +375,21 @@ class ReminderNotificationService:
                     if trigger_time and isinstance(trigger_time, str):
                         trigger_time = datetime.fromisoformat(trigger_time.replace('Z', '+00:00'))
                     
-                    if trigger_time and now_utc <= trigger_time <= cutoff_time:
-                        task = self.task_repository.get_task_by_id(str(reminder['taskId']))
-                        if task:
-                            reminder['task'] = {
-                                'title': getattr(task, 'title', ''),
-                                'description': getattr(task, 'description', ''),
-                                'priority': getattr(task, 'priority', 'medium'),
-                                'due_date': getattr(task, 'due_date', None),
-                                'due_time': getattr(task, 'due_time', None)
-                            }
-                        enriched_reminders.append(reminder)
+                    if trigger_time:
+                        if trigger_time.tzinfo is not None:
+                            trigger_time = trigger_time.replace(tzinfo=None)
+                        
+                        if now_local <= trigger_time <= cutoff_time:
+                            task = self.task_repository.get_task_by_id(str(reminder['taskId']))
+                            if task:
+                                reminder['task'] = {
+                                    'title': getattr(task, 'title', ''),
+                                    'description': getattr(task, 'description', ''),
+                                    'priority': getattr(task, 'priority', 'medium'),
+                                    'due_date': getattr(task, 'due_date', None),
+                                    'due_time': getattr(task, 'due_time', None)
+                                }
+                            enriched_reminders.append(reminder)
                 except Exception as e:
                     logger.error(f"Error enriching notification reminder {reminder['_id']}: {str(e)}")
                     continue

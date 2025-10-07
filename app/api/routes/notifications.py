@@ -6,6 +6,7 @@ Provides CRUD operations for stored notifications
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 from datetime import datetime
+from app.utils.timezone_helper import local_now
 
 from app.api.routes.auth import get_current_user
 from app.repositories.notification import NotificationRepository
@@ -102,7 +103,7 @@ async def mark_notification_as_read(
         "success": True,
         "message": "Notification marked as read",
         "notification_id": notification_id,
-        "read_at": datetime.utcnow().isoformat()
+        "read_at": local_now().isoformat()
     }
 
 @router.post("/mark-multiple-read", response_model=dict)
@@ -237,7 +238,7 @@ async def sync_notifications(
             "notifications": [n.dict() for n in filtered_notifications],
             "count": len(filtered_notifications),
             "unread_count": notifications.unread_count,
-            "sync_timestamp": datetime.utcnow().isoformat()
+            "sync_timestamp": local_now().isoformat()
         }
         
     except Exception as e:

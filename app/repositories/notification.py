@@ -8,6 +8,7 @@ from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from pymongo.collection import Collection
 from pymongo import DESCENDING
+from app.utils.timezone_helper import local_now
 
 from app.core.database import get_database
 from app.models.notification import (
@@ -73,8 +74,8 @@ class NotificationRepository:
                 "action": notification_data.action.dict() if notification_data.action else None,
                 "data": notification_data.data.dict() if notification_data.data else None,
                 "metadata": notification_data.metadata or {},
-                "created_at": getattr(notification_data, 'created_at', datetime.utcnow()),
-                "updated_at": getattr(notification_data, 'updated_at', datetime.utcnow()),
+                "created_at": getattr(notification_data, 'created_at', local_now()),
+                "updated_at": getattr(notification_data, 'updated_at', local_now()),
                 "scheduled_for": notification_data.scheduled_for,
                 "expires_at": notification_data.expires_at,
                 "delivery_attempts": 0,
@@ -140,7 +141,7 @@ class NotificationRepository:
             if not include_expired:
                 query["$or"] = [
                     {"expires_at": None},
-                    {"expires_at": {"$gt": datetime.utcnow()}}
+                    {"expires_at": {"$gt": local_now()}}
                 ]
             
             # Count total
@@ -192,13 +193,13 @@ class NotificationRepository:
     ) -> bool:
         """Update a notification"""
         try:
-            update_doc = {"updated_at": datetime.utcnow()}
+            update_doc = {"updated_at": local_now()}
             
             if update_data.status:
                 update_doc["status"] = update_data.status
                 
                 if update_data.status == NotificationStatus.READ and not update_data.read_at:
-                    update_doc["read_at"] = datetime.utcnow()
+                    update_doc["read_at"] = local_now()
             
             if update_data.read_at:
                 update_doc["read_at"] = update_data.read_at
@@ -221,7 +222,7 @@ class NotificationRepository:
             user_id, 
             NotificationUpdate(
                 status=NotificationStatus.READ,
-                read_at=datetime.utcnow()
+                read_at=local_now()
             )
         )
     
@@ -238,8 +239,8 @@ class NotificationRepository:
                 {
                     "$set": {
                         "status": NotificationStatus.READ,
-                        "read_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
+                        "read_at": local_now(),
+                        "updated_at": local_now()
                     }
                 }
             )
@@ -279,7 +280,7 @@ class NotificationRepository:
     def clear_user_notifications(self, user_id: str, older_than_days: int = 30) -> int:
         """Clear old notifications for a user"""
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=older_than_days)
+            cutoff_date = local_now() - timedelta(days=older_than_days)
             result = self.collection.delete_many({
                 "user_id": user_id,
                 "created_at": {"$lt": cutoff_date}
@@ -335,7 +336,7 @@ class NotificationRepository:
                 priority_counts[result["_id"]] = result["count"]
             
             # Get recent count (last 24 hours)
-            recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+            recent_cutoff = local_now() - timedelta(hours=24)
             recent_count = self.collection.count_documents({
                 "user_id": user_id,
                 "created_at": {"$gte": recent_cutoff}
@@ -369,19 +370,19 @@ class NotificationRepository:
         try:
             update_doc = {
                 "delivery_attempts": {"$inc": 1},
-                "last_delivery_attempt": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "last_delivery_attempt": local_now(),
+                "updated_at": local_now()
             }
             
             if success:
                 update_doc.update({
-                    "sent_at": datetime.utcnow(),
+                    "sent_at": local_now(),
                     "delivered_via": delivery_method
                 })
             
             result = self.collection.update_one(
                 {"_id": ObjectId(notification_id)},
-                {"$set": update_doc if success else {}, "$inc": {"delivery_attempts": 1}}
+                {"$set": update_doc if success else {"updated_at": local_now()}, "$inc": {"delivery_attempts": 1}}
             )
             
             return result.modified_count > 0
@@ -394,7 +395,7 @@ class NotificationRepository:
         """Remove expired notifications"""
         try:
             result = self.collection.delete_many({
-                "expires_at": {"$lt": datetime.utcnow()}
+                "expires_at": {"$lt": local_now()}
             })
             
             if result.deleted_count > 0:

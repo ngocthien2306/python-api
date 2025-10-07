@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from app.repositories.base import BaseRepository
 from app.models.task import Task, TaskUpdate
+from app.utils.timezone_helper import local_now
 
 class TaskRepository(BaseRepository[Task]):
     def get_collection_name(self) -> str:
@@ -24,7 +25,7 @@ class TaskRepository(BaseRepository[Task]):
         return self.find_by_user_and_status(user_id, "pending")
     
     def update_status(self, task_id: str, status: str) -> bool:
-        return self.update(task_id, {"status": status, "updated_at": datetime.now()})
+        return self.update(task_id, {"status": status, "updated_at": local_now()})
     
     def update_task(self, task_id: str, task_update: TaskUpdate) -> bool:
         """Update a task with the provided data"""
@@ -43,7 +44,7 @@ class TaskRepository(BaseRepository[Task]):
             update_data["status"] = task_update.status
             # If status is completed, set completed_at
             if task_update.status == "completed":
-                update_data["completed_at"] = datetime.now()
+                update_data["completed_at"] = local_now()
         if task_update.tags is not None:
             update_data["tags"] = task_update.tags
         if task_update.due_date is not None:
@@ -59,7 +60,7 @@ class TaskRepository(BaseRepository[Task]):
             update_data["completed_at"] = task_update.completed_at
         
         # Always update the updated_at timestamp
-        update_data["updatedAt"] = datetime.now()
+        update_data["updatedAt"] = local_now()
         
         return self.update(task_id, update_data)
     

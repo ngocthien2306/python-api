@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 from datetime import datetime
+from app.utils.timezone_helper import local_now
 from app.schemas.ai_response import AIResponse
 from app.services.domain.task_service import TaskService
 from app.services.domain.reminder_service import ReminderService
@@ -36,7 +37,7 @@ class DatabaseManagerService:
         Main orchestrator method - delegates to appropriate domain services
         This is now much cleaner and focused on coordination only
         """
-        session_id = f"{user_id}_{int(datetime.now().timestamp())}"
+        session_id = f"{user_id}_{int(local_now().timestamp())}"
         results = {"session_id": session_id, "operations": []}
         
         try:

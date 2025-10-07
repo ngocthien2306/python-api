@@ -3,6 +3,7 @@ import traceback
 from typing import Dict, Any, Optional
 from app.services.database_manager import DatabaseManagerService
 from app.schemas.user_onboarding import OnboardingProfileData
+from app.utils.timezone_helper import local_now
 
 class UserOnboardingService:
     def __init__(self, db_manager: DatabaseManagerService):
@@ -66,8 +67,8 @@ class UserOnboardingService:
                 
                 # Mark onboarding as completed
                 "is_onboarding_completed": True,
-                "onboarding_completed_at": completed_at or datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
+                "onboarding_completed_at": completed_at or local_now().isoformat(),
+                "updated_at": local_now().isoformat()
             }
             
             # Remove None values
@@ -135,8 +136,8 @@ class UserOnboardingService:
             update_data = {
                 "skip_onboarding": True,
                 "is_onboarding_completed": True,
-                "onboarding_completed_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
+                "onboarding_completed_at": local_now().isoformat(),
+                "updated_at": local_now().isoformat()
             }
             
             result = await self.db_manager.update_user_profile(user_id, update_data)
@@ -255,7 +256,7 @@ class UserOnboardingService:
                 profile_updates["personality"] = personality_updates
             
             # Add timestamp
-            profile_updates["updated_at"] = datetime.utcnow().isoformat()
+            profile_updates["updated_at"] = local_now().isoformat()
             
             # Update in database
             result = await self.db_manager.update_user_profile(user_id, profile_updates)

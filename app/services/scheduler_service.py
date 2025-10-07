@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Optional
+from app.utils.timezone_helper import local_now
 from app.services.reminder_email_service import ReminderEmailService
 from app.services.reminder_notification_service import ReminderNotificationService
 
@@ -148,7 +149,7 @@ class SchedulerService:
     async def _check_and_send_reminders(self):
         """Check and send due reminders with detailed logging."""
         try:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            current_time = local_now().strftime('%Y-%m-%d %H:%M:%S')
             logger.info(f"🔍 [{current_time}] Starting reminder check cycle...")
             
             # Process email reminders
@@ -194,7 +195,7 @@ class SchedulerService:
                 notification_logger.error(f"❌ [{current_time}] Failed to process notification reminders: {error_msg}")
                 
         except Exception as e:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            current_time = local_now().strftime('%Y-%m-%d %H:%M:%S')
             logger.error(f"💥 [{current_time}] Exception in reminder check: {str(e)}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")

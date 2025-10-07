@@ -4,6 +4,7 @@ from pymongo.collection import Collection
 from app.models.user import User, UserCreate, UserUpdate
 from app.core.auth import get_password_hash
 from bson import ObjectId
+from app.utils.timezone_helper import local_now
 
 class UserRepository:
     def __init__(self, db):
@@ -69,8 +70,8 @@ class UserRepository:
                     "tech_level": None,
                     "notification_preferences": []
                 },
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": local_now(),
+                "updated_at": local_now(),
                 "last_login": None,
                 "push_subscriptions": []
             }
@@ -171,7 +172,7 @@ class UserRepository:
                     if value is not None:
                         update_data[f"personality.{key}"] = value
             
-            update_data["updated_at"] = datetime.utcnow()
+            update_data["updated_at"] = local_now()
             
             result = self.collection.update_one(
                 {"_id": ObjectId(user_id)},
@@ -191,7 +192,7 @@ class UserRepository:
         try:
             result = self.collection.update_one(
                 {"_id": ObjectId(user_id)},
-                {"$set": {"last_login": datetime.utcnow()}}
+                {"$set": {"last_login": local_now()}}
             )
             return result.modified_count > 0
         except Exception as e:
@@ -252,7 +253,7 @@ class UserRepository:
         try:
             result = self.collection.update_one(
                 {"_id": ObjectId(user_id)},
-                {"$set": {"is_verified": True, "updated_at": datetime.utcnow()}}
+                {"$set": {"is_verified": True, "updated_at": local_now()}}
             )
             return result.modified_count > 0
         except Exception as e:
@@ -265,7 +266,7 @@ class UserRepository:
             hashed_password = get_password_hash(new_password)
             result = self.collection.update_one(
                 {"_id": ObjectId(user_id)},
-                {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}}
+                {"$set": {"hashed_password": hashed_password, "updated_at": local_now()}}
             )
             return result.modified_count > 0
         except Exception as e:

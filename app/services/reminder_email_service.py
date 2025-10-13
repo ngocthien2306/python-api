@@ -97,8 +97,8 @@ class ReminderEmailService:
             
             for reminder_data in due_reminders:
                 try:
-                    # success = await self.send_reminder_email(reminder_data)
-                    success = False
+                    success = await self.send_reminder_email(reminder_data)
+                    # success = False
                     # Get task info for logging
                     task = self.task_repository.get_task_by_id(str(reminder_data['taskId']))
                     task_title = getattr(task, 'title', 'Unknown Task') if task else 'Unknown Task'

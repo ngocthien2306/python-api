@@ -343,65 +343,105 @@ class PaymentService:
             )
 
             # Create email content
-            subject = "Xác nhận thanh toán - Biên lai đăng ký"
+            subject = "Payment Confirmation - Your Subscription Receipt"
 
             html_content = f"""
+            <!DOCTYPE html>
             <html>
-            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">✅ Thanh toán thành công!</h1>
-                </div>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 40px 20px;">
+                            <table role="presentation" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                                <!-- Header -->
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                                        <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 700;">✓ Payment Successful!</h1>
+                                        <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">Thank you for your subscription</p>
+                                    </td>
+                                </tr>
 
-                <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
-                    <p style="font-size: 16px; color: #333;">Xin chào <strong>{user.get('username', 'bạn')}</strong>,</p>
+                                <!-- Content -->
+                                <tr>
+                                    <td style="padding: 40px 30px;">
+                                        <p style="font-size: 18px; color: #111827; margin: 0 0 10px 0;">Hi <strong>{user.get('username', 'there')}</strong>,</p>
 
-                    <p style="font-size: 16px; color: #333;">Cảm ơn bạn đã đăng ký! Thanh toán của bạn đã được xử lý thành công.</p>
+                                        <p style="font-size: 16px; color: #4b5563; line-height: 1.6; margin: 0 0 30px 0;">
+                                            Your payment has been successfully processed! Your subscription is now active and ready to use.
+                                        </p>
 
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
-                        <h2 style="margin-top: 0; color: #667eea;">📋 Chi tiết biên lai</h2>
+                                        <!-- Receipt Details -->
+                                        <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
+                                            <h2 style="margin: 0 0 20px 0; color: #667eea; font-size: 20px; font-weight: 600;">
+                                                <span style="display: inline-block; margin-right: 8px;">📋</span>Receipt Details
+                                            </h2>
 
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Mã giao dịch:</strong></td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">{payment.get('transaction_id', 'N/A')}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Gói đăng ký:</strong></td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">{plan.name}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Số tiền:</strong></td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">{payment['amount']:,.0f} {payment['currency']}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Ngày thanh toán:</strong></td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">{payment.get('completed_at', datetime.now(timezone.utc)).strftime('%d/%m/%Y %H:%M')}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0;"><strong>Trạng thái:</strong></td>
-                                <td style="padding: 10px 0; text-align: right;"><span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">Đã thanh toán</span></td>
-                            </tr>
-                        </table>
-                    </div>
+                                            <table style="width: 100%; border-collapse: collapse;">
+                                                <tr>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">Transaction ID</td>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #111827; font-weight: 500; font-size: 14px;">{payment.get('transaction_id', 'N/A')}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">Subscription Plan</td>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #111827; font-weight: 500; font-size: 14px;">{plan.name}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">Amount Paid</td>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #111827; font-weight: 600; font-size: 16px;">{payment['amount']:,.0f} {payment['currency']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">Payment Date</td>
+                                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #111827; font-weight: 500; font-size: 14px;">{payment.get('completed_at', datetime.now(timezone.utc)).strftime('%B %d, %Y at %H:%M UTC')}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Status</td>
+                                                    <td style="padding: 12px 0; text-align: right;">
+                                                        <span style="background: #10b981; color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;">PAID</span>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
 
-                    <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                        <p style="margin: 0; color: #1e40af;"><strong>🎉 Gói của bạn đã được kích hoạt!</strong></p>
-                        <p style="margin: 10px 0 0 0; color: #1e40af;">Bắt đầu sử dụng ngay với {plan.tokens_limit:,} tokens và {plan.requests_limit:,} requests.</p>
-                    </div>
+                                        <!-- Subscription Active -->
+                                        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 12px; padding: 20px; margin-bottom: 30px; border-left: 4px solid #3b82f6;">
+                                            <p style="margin: 0; color: #1e40af; font-size: 16px; font-weight: 600;">
+                                                🎉 Your subscription is now active!
+                                            </p>
+                                            <p style="margin: 12px 0 0 0; color: #1e40af; font-size: 14px; line-height: 1.5;">
+                                                Start using your plan with <strong>{plan.tokens_limit:,} tokens</strong> and <strong>{plan.requests_limit:,} requests</strong>.
+                                            </p>
+                                        </div>
 
-                    <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
-                        Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi tại {settings.SMTP_FROM_EMAIL}
-                    </p>
+                                        <!-- Support -->
+                                        <p style="margin: 30px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                                            If you have any questions or need assistance, feel free to contact us at
+                                            <a href="mailto:{settings.SMTP_FROM_EMAIL}" style="color: #667eea; text-decoration: none;">{settings.SMTP_FROM_EMAIL}</a>
+                                        </p>
 
-                    <p style="color: #6b7280; font-size: 14px;">
-                        Trân trọng,<br>
-                        <strong>Đội ngũ Task Management</strong>
-                    </p>
-                </div>
+                                        <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px;">
+                                            Best regards,<br>
+                                            <strong style="color: #111827;">Task Management AI Team</strong>
+                                        </p>
+                                    </td>
+                                </tr>
 
-                <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-                    <p>Email này được gửi tự động, vui lòng không trả lời.</p>
-                </div>
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                        <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+                                            This is an automated email. Please do not reply to this message.<br>
+                                            © 2025 Task Management AI. All rights reserved.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
             </body>
             </html>
             """

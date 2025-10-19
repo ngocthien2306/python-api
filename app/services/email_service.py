@@ -1,8 +1,10 @@
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from jinja2 import Template
 from typing import List, Optional
+from io import BytesIO
 from app.core.config import settings
 import logging
 
@@ -22,23 +24,44 @@ class EmailService:
         to_emails: List[str],
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None
+        text_content: Optional[str] = None,
+        attachments: Optional[List[dict]] = None
     ) -> bool:
-        """Send email using aiosmtplib for async operation."""
+        """
+        Send email using aiosmtplib for async operation.
+
+        Args:
+            attachments: List of dicts with 'filename' and 'content' (BytesIO)
+        """
         try:
-            message = MIMEMultipart("alternative")
+            message = MIMEMultipart("mixed")
             message["Subject"] = subject
             message["From"] = f"{self.from_name} <{self.from_email}>"
             message["To"] = ", ".join(to_emails)
 
+            # Create alternative part for text/html
+            msg_alternative = MIMEMultipart("alternative")
+            message.attach(msg_alternative)
+
             # Add text part if provided
             if text_content:
                 text_part = MIMEText(text_content, "plain")
-                message.attach(text_part)
+                msg_alternative.attach(text_part)
 
             # Add HTML part
             html_part = MIMEText(html_content, "html")
-            message.attach(html_part)
+            msg_alternative.attach(html_part)
+
+            # Add attachments if provided
+            if attachments:
+                for attachment in attachments:
+                    filename = attachment.get('filename', 'attachment.pdf')
+                    content = attachment.get('content')  # BytesIO
+
+                    if content:
+                        part = MIMEApplication(content.getvalue(), _subtype="pdf")
+                        part.add_header('Content-Disposition', 'attachment', filename=filename)
+                        message.attach(part)
 
             # Send email
             await aiosmtplib.send(

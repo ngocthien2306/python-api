@@ -32,7 +32,12 @@ class Settings(BaseSettings):
     
     # API Base URL for file serving (for production, set to your domain)
     BASE_URL: Optional[str] = None  # If None, will auto-construct from API_HOST:API_PORT
-    
+
+    # Stripe Settings
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+
     class Config:
         env_file = ".env"
 

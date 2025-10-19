@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_database
 from app.services.scheduler_service import start_scheduler, stop_scheduler
-from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications, notifications, tasks, upload, reminders, subscription
+from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications, notifications, tasks, upload, reminders, subscription, payment
 
 def create_application() -> FastAPI:
     app = FastAPI(
@@ -31,6 +31,7 @@ def create_application() -> FastAPI:
     app.include_router(upload.router, prefix="/api/v1/upload", tags=["File Upload"])
     app.include_router(reminders.router, prefix="/api/v1", tags=["Reminders"])
     app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription Management"])
+    app.include_router(payment.router, prefix="/api/v1", tags=["Payment"])
     
     @app.on_event("startup")
     async def startup_event():

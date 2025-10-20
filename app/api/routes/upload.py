@@ -57,12 +57,12 @@ async def upload_avatar(
         base_url = getattr(settings, 'BASE_URL', None)
         if not base_url:
             # Fallback: construct from API settings
-            api_host = settings.API_HOST if settings.API_HOST != "0.0.0.0" else "localhost"
+            api_host = settings.API_HOST_UPLOAD if settings.API_HOST_UPLOAD != "0.0.0.0" else "localhost"
             api_port = settings.API_PORT
             base_url = f"http://{api_host}:{api_port}"
         
+        # avatar_url = f"http://26.208.148.9:8000/api/v1/upload/avatar/{filename}"
         avatar_url = f"{base_url}/api/v1/upload/avatar/{filename}"
-        
         return {
             "success": True,
             "avatar_url": avatar_url,

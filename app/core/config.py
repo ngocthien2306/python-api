@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     DATABASE_NAME: str
     API_HOST: str = "0.0.0.0"
+    API_HOST_UPLOAD: str = "26.208.148.9"
     API_PORT: int = 8000
     DEBUG: bool = False
     ENVIRONMENT: str = "local"

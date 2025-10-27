@@ -48,25 +48,46 @@ def payment_success(
     session_id: str,
     payment_service: PaymentService = Depends(get_payment_service)
 ):
-    """Handle successful payment callback"""
+    """Handle successful payment callback - Frontend redirect endpoint
+
+    NOTE: This endpoint only returns payment info for display.
+    Actual subscription creation and email sending happens via Stripe webhook.
+    If webhook is not configured, subscriptions will not be created!
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info(f"Payment success callback: session_id={session_id}")
+
         # Find payment by checkout_session_id
         payment = payment_service.payments_collection.find_one({'checkout_session_id': session_id})
 
         if not payment:
+            logger.warning(f"Payment not found for session_id={session_id}")
             raise HTTPException(status_code=404, detail="Payment not found")
+
+        logger.info(f"Payment found: payment_id={payment['_id']}, status={payment.get('status')}")
+
+        # Check if webhook has processed this payment
+        subscription = payment_service.subscriptions_collection.find_one({'user_id': payment['user_id']})
+        webhook_processed = subscription is not None and payment.get('status') == 'completed'
 
         return {
             "success": True,
             "message": "Payment successful",
             "session_id": session_id,
             "payment_id": str(payment['_id']),
-            "payment_status": payment.get('status', 'pending')
+            "payment_status": payment.get('status', 'pending'),
+            "webhook_processed": webhook_processed,
+            "note": "If webhook_processed is false, check if Stripe webhook is configured correctly"
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error in payment success callback: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to process success: {str(e)}")
 
 @router.get("/payment/cancel")

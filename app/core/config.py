@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     DATABASE_NAME: str
     API_HOST: str = "0.0.0.0"
-    API_HOST_UPLOAD: str = "26.208.148.9"
+    API_HOST_UPLOAD: str = "https://task-agent-api.ngrok.dev"
     API_PORT: int = 8000
     DEBUG: bool = False
     ENVIRONMENT: str = "local"
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "taskmanagement.agent@gmail.com"
     SMTP_FROM_NAME: str = "Task Management"
     EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "https://task-agent.ngrok.dev"
     
     # API Base URL for file serving (for production, set to your domain)
     BASE_URL: Optional[str] = None  # If None, will auto-construct from API_HOST:API_PORT

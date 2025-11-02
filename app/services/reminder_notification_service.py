@@ -374,7 +374,7 @@ class ReminderNotificationService:
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"http://localhost:8000/api/v1/send-notification/{user_id}",
+                    f"https://task-agent-api.ngrok.dev/api/v1/send-notification/{user_id}",
                     json=notification_payload,
                     timeout=5.0
                 )

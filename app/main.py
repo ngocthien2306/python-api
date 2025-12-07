@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_database
 from app.services.scheduler_service import start_scheduler, stop_scheduler
-from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications, notifications, tasks, upload, reminders, subscription, payment
+from app.api.routes import ai_processor, auth, chatgpt_integration, onboarding, websocket_notifications, notifications, tasks, upload, reminders, subscription, payment, admin, admin_auth
 
 def create_application() -> FastAPI:
     app = FastAPI(
@@ -23,6 +23,7 @@ def create_application() -> FastAPI:
     
     app.include_router(ai_processor.router, prefix="/api/v1", tags=["AI Processor"])
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+    app.include_router(admin_auth.router, prefix="/api/v1", tags=["Admin Authentication"])
     app.include_router(chatgpt_integration.router, prefix="/api/v1/chatgpt", tags=["ChatGPT Integration"])
     app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["Onboarding"])
     app.include_router(websocket_notifications.router, prefix="/api/v1", tags=["WebSocket Notifications"])
@@ -32,6 +33,7 @@ def create_application() -> FastAPI:
     app.include_router(reminders.router, prefix="/api/v1", tags=["Reminders"])
     app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription Management"])
     app.include_router(payment.router, prefix="/api/v1", tags=["Payment"])
+    app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
     
     @app.on_event("startup")
     async def startup_event():

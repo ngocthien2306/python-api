@@ -56,6 +56,8 @@ def init_database():
     db.database.usage_logs.create_index([("user_id", 1), ("request_type", 1)])
     db.database.usage_logs.create_index([("timestamp", -1)])
     db.database.usage_logs.create_index([("session_id", 1)])
+    
+    return db.database
 
 def close_database():
     if db.client:

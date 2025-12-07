@@ -118,6 +118,7 @@ async def get_current_user_info(current_user = Depends(get_current_user)):
         email=current_user.email,
         username=current_user.username,
         is_active=current_user.is_active,
+        is_admin=getattr(current_user, 'is_admin', False),
         profile=current_user.profile,
         personality=current_user.personality,
         created_at=current_user.created_at,

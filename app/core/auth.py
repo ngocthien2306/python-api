@@ -42,6 +42,14 @@ def verify_token(token: str) -> Optional[TokenData]:
     except JWTError:
         return None
 
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode JWT token and return payload."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
 def get_current_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
     """Extract and verify current user from JWT token."""
     credentials_exception = HTTPException(

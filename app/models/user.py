@@ -58,6 +58,7 @@ class User(BaseModel):
     hashed_password: str
     is_active: bool = True
     is_verified: bool = False
+    is_admin: bool = False
     profile: UserProfile = UserProfile()
     personality: UserPersonality = UserPersonality()
     created_at: datetime = Field(default_factory=local_now)
@@ -121,6 +122,7 @@ class UserResponse(BaseModel):
     email: str
     username: str
     is_active: bool
+    is_admin: bool = False
     profile: UserProfile
     personality: UserPersonality
     created_at: datetime

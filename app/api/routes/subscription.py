@@ -222,27 +222,28 @@ async def get_available_plans(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Admin Endpoints
-@router.get("/admin/subscriptions")
-async def get_all_subscriptions(
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=1000)
-):
-    """Get all subscriptions (admin only)"""
-    try:
-        # TODO: Add admin authentication
-        from app.repositories.subscription import SubscriptionRepository
-        repo = SubscriptionRepository()
-        result = await repo.get_all_subscriptions(skip, limit)
-        
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-            
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+# @router.get("/admin/subscriptions") - DEPRECATED: Use /api/v1/admin/subscriptions instead
+# This endpoint has been moved to admin.py with proper authentication
+# async def get_all_subscriptions(
+#     skip: int = Query(default=0, ge=0),
+#     limit: int = Query(default=50, ge=1, le=1000)
+# ):
+#     """Get all subscriptions (admin only)"""
+#     try:
+#         # TODO: Add admin authentication
+#         from app.repositories.subscription import SubscriptionRepository
+#         repo = SubscriptionRepository()
+#         result = await repo.get_all_subscriptions(skip, limit)
+#         
+#         if "error" in result:
+#             raise HTTPException(status_code=500, detail=result["error"])
+#             
+#         return result
+#         
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/admin/dashboard")
 async def get_admin_dashboard(

@@ -44,7 +44,7 @@ class AIResponse(BaseModel):
     mode: str
     intent: str
     confidence: float
-    messages: List[Message]
+    messages: List[Message] = []  # Made optional with default empty list for resilience
     taskAction: Optional[TaskAction] = None
     schedulingAction: Optional[SchedulingAction] = None
     needsConfirmation: Optional[bool] = False

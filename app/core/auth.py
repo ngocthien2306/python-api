@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -11,13 +12,19 @@ from app.utils.timezone_helper import local_now
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def _prehash_password(password: str) -> str:
+    """Pre-hash password with SHA256 to avoid bcrypt's 72-byte limit."""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    prehashed = _prehash_password(plain_password)
+    return pwd_context.verify(prehashed, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Generate password hash."""
-    return pwd_context.hash(password)
+    prehashed = _prehash_password(password)
+    return pwd_context.hash(prehashed)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token."""
